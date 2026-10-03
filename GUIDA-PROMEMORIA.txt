@@ -157,6 +157,12 @@ PASSO 6 — Prova subito, senza aspettare domattina
 -----------------------------------------------------------------------
 SE QUALCOSA NON FUNZIONA
 -----------------------------------------------------------------------
+"Node.js 20 detected without native WebSocket support"
+    Errore delle versioni fino al 4 ottobre 2026: il programma usava la
+    libreria Supabase, che si porta dietro il client "tempo reale".
+    Risolto: promemoria.mjs ora parla con Supabase via chiamate HTTP
+    dirette. Sostituisci promemoria.mjs e package.json e rilancia.
+
 "Manca il segreto XXX"
     Il nome del segreto è scritto diverso: devono essere maiuscoli ed
     esatti. Ricontrolla il passo 4.

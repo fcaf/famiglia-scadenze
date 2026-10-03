@@ -1,19 +1,47 @@
-Tre soli file, da caricare nella radice del repository come hai già fatto
-(Add file -> Upload files -> trascina -> Commit changes):
+CORREZIONE — "Node.js 20 detected without native WebSocket support"
+===================================================================
 
-    index.html
-    app.js
-    sw.js
+Che cosa era successo
+---------------------
+Il programma dei promemoria usava la libreria ufficiale di Supabase.
+Quella libreria, all'avvio, prepara anche il canale "tempo reale", che
+su Node 20 pretende un WebSocket che su quella macchina non c'è: da qui
+l'errore, prima ancora di leggere qualsiasi dato.
 
-A che servono
--------------
-Evitano che il browser continui a mostrare la versione vecchia dopo un aggiornamento:
-d'ora in poi la pagina e i file dell'app vengono sempre riletti dalla rete.
+Il tempo reale serve all'app nel browser (per vedere le modifiche degli
+altri familiari), non a questo programma, che deve solo leggere le
+scadenze e cancellare le iscrizioni scadute. L'ho quindi riscritto con
+chiamate HTTP dirette: nessuna libreria Supabase, nessun WebSocket.
 
-In più, nel pannello Account (l'iniziale in alto a destra) trovi:
- - la data della versione che stai usando, utile quando qualcosa non torna;
- - il pulsante "Scarica l'ultima versione", che svuota la copia locale e ricarica.
-   Dopo ogni aggiornamento futuro basterà premere quello, anche sul telefono.
+Che cosa devi fare (2 minuti)
+-----------------------------
+1. Sul repository GitHub: Add file -> Upload files.
+2. Trascina questi due file (vanno nella radice, dove stanno adesso):
 
-Nota: questo non sostituisce il ricaricamento forzato che devi fare ADESSO
-(Ctrl+Shift+R su PC) per vedere finalmente l'app partire.
+       promemoria.mjs
+       package.json
+
+3. Commit changes.
+4. Scheda "Actions" -> "Promemoria scadenze" -> "Run workflow".
+
+Non serve toccare .github/workflows/promemoria.yml né i segreti.
+
+Che cosa vedrai
+---------------
+Se c'è qualcosa in scadenza e almeno un telefono iscritto:
+
+    Oggi è 2026-10-04: 3 attività in scadenza, 2 dispositivi iscritti.
+    Notifiche inviate: 2 · iscrizioni scadute rimosse: 0 · errori: 0
+
+Se non c'è nulla in scadenza, ora lo dice chiaramente invece di restare
+muto:
+
+    Niente di scaduto o in scadenza oggi: nessuna notifica da inviare.
+
+E se nessuno ha ancora attivato l'interruttore sul telefono:
+
+    Nessun dispositivo iscritto: attiva «Promemoria sul telefono» nelle
+    impostazioni dell'app.
+
+Per una prova vera, crea un'attività con scadenza oggi, attiva
+l'interruttore in Impostazioni e rilancia il workflow.
