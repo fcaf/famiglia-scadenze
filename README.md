@@ -160,23 +160,40 @@ condivise; puoi renderne private singolarmente quelle che vuoi.
 
 ## Se qualcosa non va
 
+> Se qualcosa non va, l'app non resta mai bianca: mostra un riquadro con il motivo. Se vedi
+> comunque una pagina bianca o la schermata «File not found» di GitHub, il problema è a monte —
+> vedi le prime due righe della tabella.
+
 | Sintomo | Causa più probabile |
 |---|---|
+| Pagina bianca o «404 File not found» | i file sono finiti dentro una sottocartella del repository: `index.html` deve stare nella **radice**, non in `famiglia-scadenze/index.html`. Controlla la pagina iniziale del repository: devi vedere subito `index.html`, `css`, `js`, `icone` |
+| La pagina non cambia dopo una modifica | la pubblicazione richiede 1-2 minuti (vedi il pallino giallo/verde in alto a destra nel repository); poi ricarica con Ctrl+F5, o chiudi e riapri l'app sul telefono |
 | «L'app non è ancora configurata» | `js/config.js` non compilato, o caricato su GitHub senza le modifiche |
 | «Email o password non corretti» | utente non creato, oppure creato senza *Auto Confirm User* |
 | L'elenco resta vuoto | lo `schema.sql` non è stato eseguito, oppure è stato eseguito a metà |
+| Riquadro «Un file necessario non è stato caricato» | quel file manca nel repository o è in una cartella sbagliata: ricarica la cartella `js` per intero |
 | Le notifiche non arrivano | chiave VAPID diversa fra `config.js` e i Secrets, interruttore non attivato su quel telefono, oppure su iPhone l'app non è stata aggiunta alla schermata Home |
 | Il workflow fallisce | controlla i cinque segreti nella scheda Actions: il messaggio di errore dice quale manca |
 | Vuoi vedere che cosa verrebbe inviato | dal tuo PC, nella cartella del progetto: `npm install` e poi `DRY_RUN=1 SUPABASE_URL=... SUPABASE_SERVICE_KEY=... VAPID_PUBLIC=... VAPID_PRIVATE=... node scripts/promemoria.mjs` — stampa i messaggi senza spedirli |
 | Scritta «offline» in alto | manca la rete, oppure il progetto Supabase è in pausa |
 
+## Nota sulle librerie
+
+Dentro `js/` ci sono due librerie open source incluse nel progetto: `supabase.min.js`
+(client Supabase, licenza MIT) e `xlsx.full.min.js` (SheetJS, licenza Apache 2.0). Sono incluse
+di proposito invece di essere richiamate da un servizio esterno: così l'app funziona anche se
+una rete, un antivirus o un blocco pubblicità impedisce di raggiungere i CDN.
+
 ## I file
 
 ```
-index.html                       la pagina dell'app
+index.html                       la pagina dell'app (deve stare nella radice del repository)
+.nojekyll                        dice a GitHub di pubblicare i file così come sono
 css/stile.css                    aspetto, compresa l'impaginazione del report
 js/config.js                     i tuoi tre valori (unico file da compilare)
 js/app.js                        tutta la logica dell'app
+js/supabase.min.js               libreria Supabase (inclusa: l'app non dipende da servizi esterni)
+js/xlsx.full.min.js              libreria per leggere e scrivere i file Excel
 sw.js, manifest.webmanifest      installazione sul telefono e funzionamento offline
 icone/                           icone dell'app
 supabase/schema.sql              tabelle e regole di accesso del database

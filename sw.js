@@ -1,8 +1,8 @@
 /* Service worker: funzionamento offline del guscio dell'app e notifiche push. */
-const CACHE = "scadenze-v1";
+const CACHE = "scadenze-v2";   // cambiando nome si svuota la cache vecchia
 const GUSCIO = [
   "./", "./index.html", "./css/stile.css", "./js/app.js", "./js/config.js",
-  "./manifest.webmanifest", "./icone/icona-192.png", "./icone/icona-512.png"
+  "./js/supabase.min.js", "./manifest.webmanifest", "./icone/icona-192.png", "./icone/icona-512.png"
 ];
 
 self.addEventListener("install", e => {

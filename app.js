@@ -88,10 +88,22 @@ function stato(testo, errore){
    ACCESSO
    ===================================================================== */
 function configurato(){
-  return window.CONFIG && /^https:\/\/[a-z0-9-]+\.supabase\.co/.test(CONFIG.SUPABASE_URL||"")
-      && (CONFIG.SUPABASE_ANON||"").length > 20;
+  if(!window.CONFIG) return false;
+  const u = String(CONFIG.SUPABASE_URL || "").trim(), k = String(CONFIG.SUPABASE_ANON || "").trim();
+  if(/INCOLLA/i.test(u) || /INCOLLA/i.test(k)) return false;   // valori di esempio non sostituiti
+  return /^https?:\/\/[^\s/]+/.test(u) && k.length > 20;
 }
 async function avvia(){
+  try{ await avviaDavvero(); }
+  catch(e){
+    console.error(e);
+    if(window.__erroreFatale)
+      window.__erroreFatale("Si è verificato un errore durante l'avvio.", e.message,
+        "i valori in js/config.js e che lo script dello schema sia stato eseguito su Supabase.");
+    else alert("Errore all'avvio: " + e.message);
+  }
+}
+async function avviaDavvero(){
   $("#fRic").innerHTML = RICORRENZE.map(r => `<option>${r}</option>`).join("");
   collegaEventi();
 
@@ -104,6 +116,9 @@ async function avvia(){
     return;
   }
   $("#lgNota").textContent = CONFIG.NOTA_ACCESSO || "";
+  if(!window.supabase || typeof window.supabase.createClient !== "function")
+    throw new Error("La libreria js/supabase.min.js non è stata caricata: controlla che il file "
+      + "sia stato caricato nel repository dentro la cartella js.");
   sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON, {
     auth:{ persistSession:true, autoRefreshToken:true }
   });
@@ -583,8 +598,8 @@ function caricaSheetJS(){
   if(window.XLSX) return Promise.resolve();
   return new Promise((ok,ko) => {
     const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
-    s.onload = ok; s.onerror = () => ko(new Error("libreria non raggiungibile"));
+    s.src = "js/xlsx.full.min.js";
+    s.onload = ok; s.onerror = () => ko(new Error("libreria js/xlsx.full.min.js non trovata"));
     document.head.appendChild(s);
   });
 }
