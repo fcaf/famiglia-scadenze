@@ -45,6 +45,9 @@ promemoria giornalieri. Tutto con servizi gratuiti, senza carta di credito.
 3. Deve comparire *Success*. Da ora esistono le tabelle `attivita`, `membri` e
    `push_iscrizioni`, con le regole che rendono visibili a tutti le attività condivise e solo
    all'autore quelle private.
+4. Ripeti la stessa operazione con il file `aggiornamento-2.sql`: aggiunge le tabelle `tag` e
+   `valori`, che rendono modificabili dall'app i tag, le priorità e le ricorrenze. Senza
+   questo passaggio l'app avvisa che le tabelle mancano e non parte.
 
 ## 3. Crea gli accessi dei familiari
 
@@ -137,14 +140,20 @@ condivise; puoi renderne private singolarmente quelle che vuoi.
 
 ## Come si usa
 
-* **Elenco** — le attività di tutta la famiglia. Il quadratino a sinistra le spunta; toccando
+* **Impostazioni** — la rotella in basso a destra: qui si gestiscono i **tag** (aggiungi,
+  rinomina, cambia colore, riordina, elimina spostando le attività su un altro tag), le
+  **priorità** e le **ricorrenze** (ogni ricorrenza ha un passo in giorni e/o mesi, quindi se
+  ne possono creare di nuove, per esempio «ogni 10 giorni»). Più in basso: i valori proposti
+  per le nuove attività, i giorni di preavviso, quali indicatori mostrare in alto, il tema
+  chiaro/scuro e il tuo account.
+* **Elenco** — le attività di tutta la famiglia, raggruppate per periodo. Il quadratino a sinistra le spunta; toccando
   il testo si aprono i dettagli. Le caselle in alto (scadute, oggi, 7 giorni, da fare, da
   pagare) sono pulsanti: toccale per filtrare.
 * **Privata** — l'interruttore dentro la scheda dell'attività. Un'attività privata è visibile e
   modificabile solo da chi l'ha creata: gli altri familiari non la vedono proprio, nemmeno
   nei loro report.
 * **Ricorrenza** — quando spunti un'attività ricorrente, l'app crea subito la successiva con la
-  scadenza calcolata.
+  scadenza calcolata in base al passo impostato nelle impostazioni.
 * **Calendario** — le scadenze del mese; tocca un giorno per vedere e aggiungere.
 * **Report** — scegli tag, stato, periodo, ordinamento e raggruppamento, poi *Stampa / Salva
   come PDF*. Dal telefono: Condividi → Stampa → Salva come PDF.
@@ -205,7 +214,9 @@ xlsx.full.min.js                 libreria per leggere e scrivere i file Excel
 sw.js, manifest.webmanifest      installazione sul telefono e funzionamento offline
 icona-192.png, icona-512.png,
 icona-maskable.png               icone dell'app
-schema.sql                       tabelle e regole di accesso del database
+schema.sql                       tabelle e regole di accesso del database (primo avvio)
+aggiornamento-2.sql              tabelle tag e valori (da eseguire una volta sola)
+GUIDA-PROMEMORIA.txt             come attivare i promemoria giornalieri, passo passo
 chiavi-vapid.html                generatore delle chiavi per le notifiche
 promemoria.mjs                   invio dei promemoria giornalieri
 package.json                     elenco delle librerie usate dal promemoria

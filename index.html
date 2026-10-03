@@ -36,10 +36,10 @@
 
   window.addEventListener("error", function(e){
     var t = e.target;
-    if(t && (t.tagName === "SCRIPT" || t.tagName === "LINK")){        // file che non si carica
+    if(t && (t.tagName === "SCRIPT" || t.tagName === "LINK")){
       var url = t.src || t.href || "";
       mostra("Un file necessario non è stato caricato.", url,
-        "che il file esista nel repository con lo stesso nome e la stessa cartella (le maiuscole contano) "
+        "che il file esista nel repository con lo stesso nome (le maiuscole contano) "
         + "e che la pubblicazione su GitHub Pages sia completata.");
       return;
     }
@@ -53,7 +53,7 @@
 <body>
 <noscript><p style="padding:24px;font:15px system-ui">Per usare questa app serve JavaScript attivo nel browser.</p></noscript>
 
-<!-- ================= ACCESSO ================= -->
+<!-- ============================ ACCESSO ============================ -->
 <section id="login" class="login" hidden>
   <div class="loginbox">
     <div class="logo">✓</div>
@@ -73,31 +73,33 @@
   </div>
 </section>
 
-<!-- ================= APP ================= -->
+<!-- ============================== APP ============================== -->
 <div id="app" hidden>
 
-  <header class="top">
-    <div class="tleft">
-      <strong id="titoloVista">Elenco</strong>
-      <span class="sync" id="sync"></span>
+  <header class="hero">
+    <div class="heroInner">
+      <div class="saluto">
+        <h1 id="saluto">Ciao</h1>
+        <p id="sottotitolo">—</p>
+      </div>
+      <button class="avatar" id="btnAccount" title="Impostazioni e account"></button>
     </div>
-    <button class="avatar" id="btnAccount" title="Account"></button>
+    <div class="kpis" id="kpis">
+      <button class="kpi" data-k="late"><span class="n" id="k1">0</span><span class="l">scadute</span></button>
+      <button class="kpi" data-k="today"><span class="n" id="k2">0</span><span class="l">oggi</span></button>
+      <button class="kpi" data-k="w"><span class="n" id="k3">0</span><span class="l" id="k3l">7 giorni</span></button>
+      <button class="kpi" data-k="todo"><span class="n" id="k4">0</span><span class="l">da fare</span></button>
+      <button class="kpi" data-k="pay"><span class="n" id="k5">—</span><span class="l">da pagare</span></button>
+    </div>
+    <span class="sync" id="sync"></span>
   </header>
 
-  <!-- ---------- ELENCO ---------- -->
+  <!-- ---------------------------- ELENCO ---------------------------- -->
   <main id="vElenco" class="vista">
-    <div class="kpis" id="kpis">
-      <button class="kpi bad"  data-k="late"><span class="n" id="k1">0</span><span class="l">Scadute</span></button>
-      <button class="kpi warn" data-k="today"><span class="n" id="k2">0</span><span class="l">Oggi</span></button>
-      <button class="kpi"      data-k="w"><span class="n" id="k3">0</span><span class="l">7 giorni</span></button>
-      <button class="kpi"      data-k="todo"><span class="n" id="k4">0</span><span class="l">Da fare</span></button>
-      <button class="kpi ok"   data-k="pay"><span class="n" id="k5">—</span><span class="l">Da pagare</span></button>
-    </div>
-
     <div class="barra">
       <div class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input id="q" type="search" placeholder="Cerca…" autocomplete="off">
+        <input id="q" type="search" placeholder="Cerca fra le attività…" autocomplete="off">
       </div>
       <select id="fStato" class="sel">
         <option value="todo">Da fare</option>
@@ -105,8 +107,8 @@
         <option value="done">Fatte</option>
       </select>
       <select id="fChi" class="sel">
-        <option value="">Famiglia</option>
-        <option value="mie">Solo mie</option>
+        <option value="">Tutta la famiglia</option>
+        <option value="mie">Inserite da me</option>
         <option value="private">Solo private</option>
         <option value="condivise">Solo condivise</option>
       </select>
@@ -118,12 +120,15 @@
       </select>
     </div>
     <div class="tagbar" id="tagbar"></div>
-
     <div id="lista" class="lista"></div>
-    <div class="vuoto" id="vuoto" hidden><b>Nessuna attività</b><span>Cambia i filtri oppure aggiungine una con il pulsante +</span></div>
+    <div class="vuoto" id="vuoto" hidden>
+      <div class="vuotoIcona">✓</div>
+      <b>Niente da fare qui</b>
+      <span>Cambia i filtri oppure aggiungi un'attività con il pulsante +</span>
+    </div>
   </main>
 
-  <!-- ---------- CALENDARIO ---------- -->
+  <!-- -------------------------- CALENDARIO -------------------------- -->
   <main id="vCal" class="vista" hidden>
     <div class="calhead">
       <button class="btn tondo" id="calPrev" aria-label="Mese precedente">‹</button>
@@ -135,75 +140,182 @@
     <div class="giorno" id="giorno"></div>
   </main>
 
-  <!-- ---------- REPORT ---------- -->
+  <!-- ---------------------------- REPORT ---------------------------- -->
   <main id="vReport" class="vista" hidden>
     <div class="scheda">
-      <label class="campo"><span>Titolo</span><input type="text" id="rTitolo" value="Elenco attività"></label>
-      <div class="campo"><span>Tag da includere</span><div class="chips" id="rTags"></div>
+      <h3 class="titoloScheda">Che cosa stampare</h3>
+      <label class="campo"><span>Titolo del report</span><input type="text" id="rTitolo" value="Elenco attività"></label>
+      <div class="campo">
+        <span>Tag inclusi <small id="rConteggioTag"></small></span>
+        <div class="chips" id="rTags"></div>
         <div class="minibtns"><button class="btn mini" id="rTutti">Tutti</button><button class="btn mini" id="rNessuno">Nessuno</button></div>
       </div>
-      <label class="campo"><span>Cosa estrarre</span>
-        <select id="rStato">
-          <option value="todo">Solo attività non flaggate</option>
-          <option value="all">Tutte le attività</option>
-          <option value="done">Solo attività fatte</option>
-        </select></label>
-      <label class="campo"><span>Scadenze</span>
-        <select id="rQuando">
-          <option value="">Tutte</option>
-          <option value="late">Solo scadute</option>
-          <option value="7">Entro 7 giorni</option>
-          <option value="30">Entro 30 giorni</option>
-          <option value="90">Entro 90 giorni</option>
-          <option value="none">Senza scadenza</option>
-        </select></label>
-      <label class="campo"><span>Ordinamento</span>
-        <select id="rOrd">
-          <option value="scadenza">Scadenza</option>
-          <option value="priorita">Priorità</option>
-          <option value="descrizione">Descrizione (A→Z)</option>
-          <option value="importo">Importo</option>
-        </select></label>
-      <label class="campo"><span>Raggruppamento</span>
-        <select id="rGruppo">
-          <option value="tag">Per tag</option>
-          <option value="none">Elenco unico</option>
-          <option value="quando">Per scadenza</option>
-        </select></label>
-      <div class="campo"><span>Aspetto</span>
-        <label class="chk"><input type="checkbox" id="rBox" checked> Casella da spuntare</label>
-        <label class="chk"><input type="checkbox" id="rData" checked> Scadenza</label>
-        <label class="chk"><input type="checkbox" id="rPrio" checked> Priorità</label>
-        <label class="chk"><input type="checkbox" id="rImp" checked> Importi e totali</label>
-        <label class="chk"><input type="checkbox" id="rRic"> Ricorrenza</label>
-        <label class="chk"><input type="checkbox" id="rChi"> Chi l'ha inserita</label>
-        <label class="chk"><input type="checkbox" id="rPriv"> Includi anche le mie attività private</label>
+      <div class="due">
+        <label class="campo"><span>Stato</span>
+          <select id="rStato">
+            <option value="todo">Solo da fare</option>
+            <option value="all">Tutte</option>
+            <option value="done">Solo fatte</option>
+          </select></label>
+        <label class="campo"><span>Scadenze</span>
+          <select id="rQuando">
+            <option value="">Tutte</option>
+            <option value="late">Solo scadute</option>
+            <option value="7">Entro 7 giorni</option>
+            <option value="30">Entro 30 giorni</option>
+            <option value="90">Entro 90 giorni</option>
+            <option value="none">Senza scadenza</option>
+          </select></label>
       </div>
+      <div class="due">
+        <label class="campo"><span>Ordinamento</span>
+          <select id="rOrd">
+            <option value="scadenza">Scadenza</option>
+            <option value="priorita">Priorità</option>
+            <option value="descrizione">Descrizione (A→Z)</option>
+            <option value="importo">Importo</option>
+          </select></label>
+        <label class="campo"><span>Raggruppamento</span>
+          <select id="rGruppo">
+            <option value="tag">Per tag</option>
+            <option value="none">Elenco unico</option>
+            <option value="quando">Per scadenza</option>
+          </select></label>
+      </div>
+      <div class="campo"><span>Aspetto della stampa</span>
+        <div class="griglia2">
+          <label class="chk"><input type="checkbox" id="rBox" checked> Casella da spuntare</label>
+          <label class="chk"><input type="checkbox" id="rData" checked> Scadenza</label>
+          <label class="chk"><input type="checkbox" id="rPrio" checked> Priorità</label>
+          <label class="chk"><input type="checkbox" id="rImp" checked> Importi e totali</label>
+          <label class="chk"><input type="checkbox" id="rRic"> Ricorrenza</label>
+          <label class="chk"><input type="checkbox" id="rChi"> Chi l'ha inserita</label>
+          <label class="chk"><input type="checkbox" id="rPriv"> Anche le mie private</label>
+        </div>
+      </div>
+      <p class="conteggio" id="rConteggio"></p>
       <button class="btn primary wide" id="btnStampa">🖨️ Stampa / Salva come PDF</button>
-      <p class="note">Sul telefono scegli «Condividi → Stampa» e poi «Salva come PDF».</p>
+      <p class="note">Sul telefono: menù del browser → Condividi → Stampa → Salva come PDF.</p>
     </div>
     <div class="anteprima" id="anteprima"></div>
   </main>
 
-  <!-- ---------- BARRA INFERIORE ---------- -->
+  <!-- ------------------------- IMPOSTAZIONI ------------------------- -->
+  <main id="vSet" class="vista" hidden>
+
+    <div class="scheda">
+      <h3 class="titoloScheda">Tag / aree</h3>
+      <p class="note" style="margin-top:0">Sono condivisi con tutta la famiglia e si possono rinominare: le attività collegate seguono il nuovo nome.</p>
+      <div id="listaTag" class="righeConf"></div>
+      <div class="aggiungi">
+        <input type="text" id="nuovoTag" placeholder="Nuovo tag (es. SCUOLA)" maxlength="30">
+        <input type="color" id="nuovoTagColore" value="#1f4f8f" title="Colore">
+        <button class="btn primary" id="btnNuovoTag">Aggiungi</button>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h3 class="titoloScheda">Priorità</h3>
+      <div id="listaPrio" class="righeConf"></div>
+      <div class="aggiungi">
+        <input type="text" id="nuovaPrio" placeholder="Nuova priorità" maxlength="20">
+        <input type="color" id="nuovaPrioColore" value="#5b6472" title="Colore">
+        <button class="btn primary" id="btnNuovaPrio">Aggiungi</button>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h3 class="titoloScheda">Ricorrenze</h3>
+      <p class="note" style="margin-top:0">Il passo indica di quanto spostare la scadenza quando spunti un'attività ricorrente.</p>
+      <div id="listaRic" class="righeConf"></div>
+      <div class="aggiungi ric">
+        <input type="text" id="nuovaRic" placeholder="Nome (es. Ogni 10 giorni)" maxlength="24">
+        <span class="passo"><span class="usi">ogni</span>
+          <input type="number" id="nuovaRicGiorni" min="0" max="999" value="0" title="Giorni"><span class="usi">gg</span>
+          <input type="number" id="nuovaRicMesi" min="0" max="120" value="0" title="Mesi"><span class="usi">mesi</span>
+          <button class="btn primary" id="btnNuovaRic">Aggiungi</button></span>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h3 class="titoloScheda">Valori predefiniti per le nuove attività</h3>
+      <div class="tre">
+        <label class="campo"><span>Tag</span><select id="defTag"></select></label>
+        <label class="campo"><span>Priorità</span><select id="defPrio"></select></label>
+        <label class="campo"><span>Ricorrenza</span><select id="defRic"></select></label>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h3 class="titoloScheda">Soglie e aspetto</h3>
+      <label class="campo"><span>Giorni di preavviso per «in arrivo»</span>
+        <input type="number" id="defGiorni" min="1" max="90" value="7"></label>
+      <div class="campo"><span>Indicatori da mostrare in alto</span>
+        <div class="griglia2">
+          <label class="chk"><input type="checkbox" class="kpiOn" value="late" checked> Scadute</label>
+          <label class="chk"><input type="checkbox" class="kpiOn" value="today" checked> Oggi</label>
+          <label class="chk"><input type="checkbox" class="kpiOn" value="w" checked> In arrivo</label>
+          <label class="chk"><input type="checkbox" class="kpiOn" value="todo" checked> Da fare</label>
+          <label class="chk"><input type="checkbox" class="kpiOn" value="pay" checked> Da pagare</label>
+        </div>
+      </div>
+      <label class="campo"><span>Tema</span>
+        <select id="defTema">
+          <option value="auto">Come il telefono</option>
+          <option value="light">Sempre chiaro</option>
+          <option value="dark">Sempre scuro</option>
+        </select></label>
+      <div class="campo"><span>Raggruppa l'elenco per periodo</span>
+        <label class="chk"><input type="checkbox" id="defGruppi" checked> Scadute, oggi, in arrivo, più avanti…</label>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h3 class="titoloScheda">Account</h3>
+      <p class="note" id="accInfo" style="margin-top:0"></p>
+      <label class="campo"><span>Il tuo nome, come lo vedono gli altri</span>
+        <div class="inline"><input type="text" id="accNome"><button class="btn" id="btnNome">Salva</button></div></label>
+      <label class="switch"><input type="checkbox" id="accPush"><span class="slider"></span>
+        <span class="txt"><b>Promemoria sul telefono</b><small id="accPushNota">Avviso ogni mattina per le scadenze del giorno e quelle in ritardo</small></span></label>
+      <h4>Famiglia</h4>
+      <div id="elencoMembri" class="membri"></div>
+      <h4>Dati</h4>
+      <div class="azioni">
+        <button class="btn" id="btnImporta">⬆️ Importa da Excel</button>
+        <button class="btn" id="btnEsporta">⬇️ Esporta in Excel</button>
+      </div>
+      <input type="file" id="fileExcel" accept=".xlsx,.xlsm,.csv" hidden>
+      <h4>App</h4>
+      <div class="azioni">
+        <button class="btn" id="btnAggiorna">🔄 Scarica l'ultima versione</button>
+        <button class="btn pericolo" id="btnEsci">Esci</button>
+      </div>
+      <p class="note" id="accVersione"></p>
+    </div>
+  </main>
+
+  <!-- --------------------------- NAVIGAZIONE ------------------------ -->
   <nav class="tabbar" id="tabbar">
     <button data-v="elenco" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Elenco</span></button>
     <button data-v="calendario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg><span>Calendario</span></button>
     <button data-v="report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V4h12v5M6 18H4v-6h16v6h-2M8 14h8v7H8z"/></svg><span>Report</span></button>
+    <button data-v="impostazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.7 1.7 0 008.9 19a1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1A1.7 1.7 0 004.6 8.3a1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V2a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg><span>Impostazioni</span></button>
   </nav>
 
-  <button class="fab" id="btnNuova" aria-label="Nuova attività">+</button>
+  <button class="fab" id="btnNuova" aria-label="Nuova attività">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
 </div>
 
-<!-- ================= MODALE ATTIVITÀ ================= -->
+<!-- ======================= MODALE ATTIVITÀ ======================= -->
 <div class="velo" id="mAtt" hidden>
   <div class="foglio">
     <header><h3 id="mTitolo">Nuova attività</h3><button class="chiudi" data-close="mAtt">✕</button></header>
     <div class="corpo">
       <label class="campo"><span>Descrizione *</span><textarea id="fDesc" rows="2" placeholder="Che cosa c'è da fare"></textarea></label>
       <div class="due">
-        <label class="campo"><span>Tag / area</span><input id="fTag" list="dlTags" placeholder="CASA" autocomplete="off"><datalist id="dlTags"></datalist></label>
-        <label class="campo"><span>Priorità</span><select id="fPrio"><option>Alta</option><option selected>Media</option><option>Bassa</option></select></label>
+        <label class="campo"><span>Tag / area</span><select id="fTag"></select></label>
+        <label class="campo"><span>Priorità</span><select id="fPrio"></select></label>
       </div>
       <div class="due">
         <label class="campo"><span>Scadenza</span><input type="date" id="fScad"></label>
@@ -212,7 +324,7 @@
       <label class="campo"><span>Ricorrenza</span><select id="fRic"></select></label>
       <label class="switch"><input type="checkbox" id="fPriv"><span class="slider"></span>
         <span class="txt"><b>Attività privata</b><small>Visibile solo a te: gli altri familiari non la vedono</small></span></label>
-      <div class="due" id="rigaFatto">
+      <div class="due">
         <label class="campo"><span>Stato</span><select id="fFatto"><option value="no">Da fare</option><option value="si">Fatta</option></select></label>
         <label class="campo"><span>Fatta in data</span><input type="date" id="fInData"></label>
       </div>
@@ -226,46 +338,11 @@
   </div>
 </div>
 
-<!-- ================= MODALE ACCOUNT ================= -->
-<div class="velo" id="mAccount" hidden>
-  <div class="foglio">
-    <header><h3>Account e impostazioni</h3><button class="chiudi" data-close="mAccount">✕</button></header>
-    <div class="corpo">
-      <p class="note" id="accInfo"></p>
-      <label class="campo"><span>Il tuo nome (come lo vedono gli altri)</span>
-        <div class="inline"><input type="text" id="accNome"><button class="btn" id="btnNome">Salva</button></div></label>
-
-      <h4>Notifiche</h4>
-      <label class="switch"><input type="checkbox" id="accPush"><span class="slider"></span>
-        <span class="txt"><b>Promemoria sul telefono</b><small id="accPushNota">Avviso ogni mattina per le scadenze del giorno e quelle in ritardo</small></span></label>
-
-      <h4>Dati</h4>
-      <div class="azioni">
-        <button class="btn" id="btnImporta">⬆️ Importa da Excel</button>
-        <button class="btn" id="btnEsporta">⬇️ Esporta in Excel</button>
-      </div>
-      <input type="file" id="fileExcel" accept=".xlsx,.xlsm,.csv" hidden>
-      <p class="note">L'importazione aggiunge le attività del file senza toccare quelle già presenti. Le attività importate nascono come condivise.</p>
-
-      <h4>Famiglia</h4>
-      <div id="elencoMembri" class="membri"></div>
-
-      <h4>App</h4>
-      <button class="btn" id="btnAggiorna" style="width:100%">🔄 Scarica l'ultima versione</button>
-      <p class="note" id="accVersione"></p>
-    </div>
-    <footer>
-      <button class="btn pericolo" id="btnEsci">Esci</button>
-      <button class="btn primary" data-close="mAccount">Chiudi</button>
-    </footer>
-  </div>
-</div>
-
-<!-- ================= CONFERMA ================= -->
+<!-- ========================== CONFERMA =========================== -->
 <div class="velo" id="mConf" hidden>
   <div class="foglio stretto">
     <header><h3 id="cTitolo">Conferma</h3><button class="chiudi" data-close="mConf">✕</button></header>
-    <div class="corpo"><p id="cTesto"></p></div>
+    <div class="corpo"><p id="cTesto"></p><div id="cExtra"></div></div>
     <footer><button class="btn" data-close="mConf">Annulla</button><button class="btn pericolo" id="cOk">Elimina</button></footer>
   </div>
 </div>

@@ -1,0 +1,185 @@
+=======================================================================
+ PROMEMORIA GIORNALIERI — guida passo passo
+ Attività e Scadenze di famiglia
+=======================================================================
+
+Che cosa otterrai
+-----------------
+Ogni mattina, su ogni telefono che lo ha attivato, arriva una notifica
+del tipo:
+
+      Scadenze: 1 in ritardo, 2 in scadenza oggi
+      • Pagare bolletta gas (dal 30/09/2026)
+      • Spesa settimanale
+      • Revisione auto
+      Da pagare: 262,60 €
+
+Ognuno riceve l'elenco condiviso più le proprie attività private: le
+private degli altri non compaiono mai.
+
+Come funziona, in due righe
+---------------------------
+Una volta al giorno GitHub esegue gratuitamente un piccolo programma
+(promemoria.mjs). Il programma chiede a Supabase quali attività sono
+scadute o scadono oggi e invia la notifica ai telefoni iscritti. Non
+serve nessun server acceso, e la stessa operazione tiene sveglio il
+progetto Supabase, che altrimenti si sospenderebbe dopo una settimana
+di inattività.
+
+Servono tre cose: due chiavi per le notifiche (le generi tu in un
+minuto), una chiave riservata di Supabase, e il file che dice a GitHub
+quando eseguire il programma.
+
+
+-----------------------------------------------------------------------
+PASSO 1 — Genera le due chiavi delle notifiche (chiavi VAPID)
+-----------------------------------------------------------------------
+1. Nella cartella scaricata, fai doppio clic su  chiavi-vapid.html
+   (si apre nel browser; le chiavi vengono create sul tuo computer e
+   non vengono inviate a nessuno).
+2. Premi "Genera la coppia di chiavi".
+3. Tieni aperta la pagina: ti servono tutti e due i valori.
+   - CHIAVE PUBBLICA  → andrà in config.js (passo 2)
+   - CHIAVE PRIVATA   → andrà nei segreti di GitHub (passo 4)
+
+   La chiave privata non va mai messa nei file del sito, né inviata
+   per email o chat.
+
+
+-----------------------------------------------------------------------
+PASSO 2 — Metti la chiave pubblica in config.js
+-----------------------------------------------------------------------
+1. Sul repository GitHub apri il file  config.js  e premi l'icona della
+   matita (Edit this file).
+2. Alla riga VAPID_PUBLIC incolla la chiave pubblica fra le virgolette:
+
+       VAPID_PUBLIC:  "BG7x...la-tua-chiave-pubblica...",
+
+3. Premi "Commit changes".
+
+
+-----------------------------------------------------------------------
+PASSO 3 — Crea il file che programma l'esecuzione
+-----------------------------------------------------------------------
+Questo è l'unico file che deve stare dentro una cartella precisa.
+
+1. Sul repository: "Add file" → "Create new file".
+2. Nel campo del nome scrivi ESATTAMENTE (con le barre):
+
+       .github/workflows/promemoria.yml
+
+   Scrivendo le barre, GitHub crea le cartelle da solo.
+3. Apri il file  promemoria.yml  della cartella scaricata, copia tutto
+   il contenuto e incollalo nel riquadro grande.
+4. Premi "Commit changes".
+5. Se nella radice del repository era rimasto un vecchio promemoria.yml,
+   puoi cancellarlo: non serve e non viene eseguito.
+
+Nota sull'orario: dentro il file c'è la riga
+
+       - cron: "0 6 * * *"
+
+che significa le 06:00 UTC, cioè le 8 del mattino con l'ora legale e le
+7 con l'ora solare. Per cambiarlo, modifica le prime due cifre: "0 5"
+= un'ora prima, "30 6" = alle 6:30 UTC. Vanno sempre indicate in UTC.
+
+
+-----------------------------------------------------------------------
+PASSO 4 — Metti i cinque segreti su GitHub
+-----------------------------------------------------------------------
+I segreti restano nascosti anche in un repository pubblico: GitHub non
+li mostra più dopo averli salvati e non finiscono nei file.
+
+1. Sul repository: "Settings" (la rotella in alto, non quella del
+   profilo) → nel menù a sinistra "Secrets and variables" → "Actions".
+2. Premi "New repository secret" e crea questi cinque, uno per volta
+   (Name = il nome esatto, Secret = il valore):
+
+   ┌──────────────────────┬──────────────────────────────────────────┐
+   │ SUPABASE_URL         │ l'indirizzo del progetto, lo stesso che  │
+   │                      │ è dentro config.js                        │
+   │                      │ es. https://pqkn....supabase.co          │
+   ├──────────────────────┼──────────────────────────────────────────┤
+   │ SUPABASE_SERVICE_KEY │ Supabase → Project Settings → API Keys   │
+   │                      │ → la chiave "service_role" (NON la anon)  │
+   ├──────────────────────┼──────────────────────────────────────────┤
+   │ VAPID_PUBLIC         │ la chiave pubblica del passo 1           │
+   ├──────────────────────┼──────────────────────────────────────────┤
+   │ VAPID_PRIVATE        │ la chiave privata del passo 1            │
+   ├──────────────────────┼──────────────────────────────────────────┤
+   │ VAPID_SUBJECT        │ mailto:tua@email.it                      │
+   └──────────────────────┴──────────────────────────────────────────┘
+
+   Attenzione a non lasciare spazi all'inizio o alla fine quando
+   incolli: sono la causa più frequente di errore.
+
+
+-----------------------------------------------------------------------
+PASSO 5 — Attiva le notifiche su ogni telefono
+-----------------------------------------------------------------------
+Da fare una volta per ogni dispositivo, da parte di ogni familiare.
+
+1. Apri l'app e, se è un iPhone, AGGIUNGILA PRIMA ALLA SCHERMATA HOME
+   (Safari → Condividi → Aggiungi a Home) e aprila da lì: su iPhone le
+   notifiche web funzionano solo così, da iOS 16.4 in poi.
+2. Entra in "Impostazioni" (la rotella in basso a destra).
+3. In fondo, sezione Account, attiva "Promemoria sul telefono".
+4. Il telefono chiede il permesso: accetta.
+5. Sotto l'interruttore deve comparire "Attive su questo dispositivo".
+
+Se l'interruttore resta spento e dice "manca la chiave VAPID", vuol
+dire che il passo 2 non è ancora arrivato sul sito: premi "Scarica
+l'ultima versione" nella stessa schermata e riprova.
+
+
+-----------------------------------------------------------------------
+PASSO 6 — Prova subito, senza aspettare domattina
+-----------------------------------------------------------------------
+1. Sul repository apri la scheda "Actions" (in alto). Se compare un
+   avviso che chiede di abilitare i workflow, confermalo.
+2. A sinistra clicca "Promemoria scadenze".
+3. A destra premi "Run workflow" → "Run workflow".
+4. Dopo qualche secondo compare una riga nell'elenco: cliccala e poi
+   clicca il riquadro "invia" per vedere cosa è successo.
+
+   Se tutto va bene leggerai righe come:
+
+       Oggi è 2026-10-04: 3 attività in scadenza, 2 dispositivi iscritti.
+       Notifiche inviate: 2 · iscrizioni scadute rimosse: 0 · errori: 0
+
+   e la notifica arriva sul telefono.
+
+   ATTENZIONE: se non hai attività scadute o in scadenza oggi, non
+   viene inviato nulla (è corretto). Per fare una prova vera, crea
+   un'attività con scadenza oggi e rilancia il workflow.
+
+
+-----------------------------------------------------------------------
+SE QUALCOSA NON FUNZIONA
+-----------------------------------------------------------------------
+"Manca il segreto XXX"
+    Il nome del segreto è scritto diverso: devono essere maiuscoli ed
+    esatti. Ricontrolla il passo 4.
+
+"Lettura attività non riuscita: Invalid API key"
+    In SUPABASE_SERVICE_KEY è finita la chiave sbagliata (anon invece
+    di service_role) oppure c'è uno spazio di troppo.
+
+Il workflow risulta verde ma non arriva niente
+    - Non c'è nulla in scadenza: è il caso più comune.
+    - L'interruttore sul telefono non è attivo (passo 5).
+    - Su iPhone l'app non è stata aperta dalla schermata Home.
+
+"Notifiche inviate: 0 · errori: 2"
+    Le chiavi VAPID di config.js e dei segreti non sono la stessa
+    coppia. Rigenerale (passo 1) e rifai i passi 2 e 4, poi disattiva
+    e riattiva l'interruttore su ogni telefono.
+
+Dopo 60 giorni senza modifiche al repository
+    GitHub sospende le esecuzioni programmate. Basta un commit
+    qualsiasi, o il pulsante "Enable workflow" nella scheda Actions,
+    per riattivarle.
+
+Vuoi vedere il messaggio senza inviarlo
+    Nella scheda Actions, dopo un'esecuzione, il riquadro "invia"
+    mostra sempre quante notifiche sono partite e per quali errori.

@@ -4,26 +4,37 @@
    ===================================================================== */
 "use strict";
 
-/* ---------------------------------------------------------------- base */
-const $  = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const VERSIONE = "3 ottobre 2026";
-const RICORRENZE = ["Nessuna","Giornaliera","Settimanale","Quindicinale","Mensile",
-                    "Bimestrale","Trimestrale","Semestrale","Annuale"];
+const VERSIONE = "4 ottobre 2026";
 const MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio",
               "agosto","settembre","ottobre","novembre","dicembre"];
 const GG = ["lun","mar","mer","gio","ven","sab","dom"];
-const PESO = { Alta:0, Media:1, Bassa:2 };
+const TAVOLOZZA = ["#1f4f8f","#7a3fa0","#1a7f52","#a85a14","#a62c2c","#0f6f80","#5d5fa8","#8a6d1f"];
 
 const S = {
-  utente:null, membri:{}, righe:[], vista:"elenco",
-  filtri:{ q:"", stato:"todo", chi:"", ord:"scadenza", tag:new Set() },
-  cal:new Date(), calSel:null, modifica:null, reportEsclusi:new Set(), canale:null
+  utente:null, membri:{}, righe:[], tag:[], priorita:[], ricorrenze:[],
+  vista:"elenco", canale:null, modifica:null, cal:new Date(), calSel:null,
+  filtri:{ q:"", stato:"todo", chi:"", ord:"scadenza", quando:"", tag:new Set() },
+  reportEsclusi:new Set()
 };
-
 let sb = null;
 
-/* ------------------------------------------------------- date e numeri */
+/* -------------------------- preferenze locali ------------------------ */
+const PREF_DEF = { tag:"", prio:"", ric:"", giorni:7, kpi:["late","today","w","todo","pay"],
+                   tema:"auto", gruppi:true };
+let PREF = { ...PREF_DEF };
+function leggiPref(){
+  try{ PREF = { ...PREF_DEF, ...(JSON.parse(localStorage.getItem("pref-scadenze") || "{}")) }; }
+  catch(e){ PREF = { ...PREF_DEF }; }
+}
+function salvaPref(){ try{ localStorage.setItem("pref-scadenze", JSON.stringify(PREF)); }catch(e){} }
+
+/* ----------------------------- scorciatoie --------------------------- */
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,
+  m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+
+/* ---------------------------- date e numeri -------------------------- */
 const pad = n => String(n).padStart(2,"0");
 const dISO = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const oggi = () => dISO(new Date());
@@ -39,31 +50,48 @@ function piuMesi(iso,n){
 }
 const eur = v => (v==null||v==="") ? "" :
   new Intl.NumberFormat("it-IT",{ style:"currency", currency:"EUR" }).format(v);
-function prossima(iso, ric){
+
+/* ------------------- valori configurabili: utilità ------------------- */
+const nomiTag  = () => S.tag.map(t => t.nome);
+const trovaTag = n => S.tag.find(t => t.nome === (n || "").toUpperCase());
+function colTag(nome){
+  const t = trovaTag(nome);
+  const base = t ? t.colore : TAVOLOZZA[Math.abs([...String(nome||"-")]
+      .reduce((h,c) => (h*31 + c.charCodeAt(0))|0, 0)) % TAVOLOZZA.length];
+  return { forte: base, tenue: mescola(base, scuro() ? 0.72 : 0.88) };
+}
+function mescola(hex, quanto){                    // avvicina il colore allo sfondo
+  const f = hex.replace("#",""), n = parseInt(f.length===3 ? f.replace(/(.)/g,"$1$1") : f, 16);
+  const r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  const s = scuro() ? 24 : 255;
+  const m = c => Math.round(c + (s - c) * quanto);
+  return `rgb(${m(r)},${m(g)},${m(b)})`;
+}
+const scuro = () => document.documentElement.dataset.tema === "dark";
+function pesoPrio(nome){
+  const i = S.priorita.findIndex(p => p.nome === nome);
+  return i < 0 ? 99 : i;
+}
+function colPrio(nome){
+  const p = S.priorita.find(x => x.nome === nome);
+  return p && p.colore ? p.colore : "var(--ink-soft)";
+}
+function passoRic(nome){ return S.ricorrenze.find(r => r.nome === nome) || null; }
+function prossima(iso, nome){
+  const v = passoRic(nome);
+  if(!v || (!v.giorni && !v.mesi)) return null;
   let d = iso || oggi(); const t = oggi();
-  const passo = x => ({ Giornaliera:()=>piuGiorni(x,1), Settimanale:()=>piuGiorni(x,7),
-    Quindicinale:()=>piuGiorni(x,14), Mensile:()=>piuMesi(x,1), Bimestrale:()=>piuMesi(x,2),
-    Trimestrale:()=>piuMesi(x,3), Semestrale:()=>piuMesi(x,6), Annuale:()=>piuMesi(x,12) }[ric] || (()=>null))();
-  for(let i=0;i<500;i++){ const n = passo(d); if(!n) return null; d = n; if(giorni(t,d) > 0) return d; }
+  for(let i=0;i<600;i++){
+    if(v.mesi)   d = piuMesi(d, v.mesi);
+    if(v.giorni) d = piuGiorni(d, v.giorni);
+    if(giorni(t,d) > 0) return d;
+  }
   return d;
 }
-const esc = s => String(s==null?"":s).replace(/[&<>"']/g,
-  m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
-
-/* --------------------------------------------------------- colori tag */
-const TAVOLOZZA = [["#1f4f8f","#e8eff9"],["#7a3fa0","#f1e9f8"],["#1a7f52","#e3f4ec"],["#a85a14","#fbeedd"],
-                   ["#a62c2c","#fbe9e9"],["#0f6f80","#e0f2f4"],["#5d5fa8","#eaeafb"],["#8a6d1f","#f8f0da"]];
-const scuro = () => matchMedia("(prefers-color-scheme: dark)").matches;
-function hash(s){ let h=0; for(let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i))|0; return Math.abs(h); }
-function colTag(t){
-  const p = TAVOLOZZA[hash(t||"—") % TAVOLOZZA.length];
-  return scuro() ? { fg:"#fff", bg:p[0] } : { fg:p[0], bg:p[1] };
-}
-const tuttiTag = () => [...new Set(S.righe.map(r => r.tag || "GENERALE"))].sort((a,b)=>a.localeCompare(b,"it"));
 const nomeDi = id => (S.membri[id] && S.membri[id].nome) || "—";
 const iniziali = n => (n||"?").trim().slice(0,2).toUpperCase();
 
-/* ------------------------------------------------------------- avvisi */
+/* ------------------------------- avvisi ------------------------------ */
 function avviso(testo, etichetta, azione){
   const d = document.createElement("div");
   d.className = "avviso"; d.textContent = testo;
@@ -71,27 +99,30 @@ function avviso(testo, etichetta, azione){
     b.onclick = () => { azione(); d.remove(); }; d.appendChild(b); }
   $("#avvisi").appendChild(d);
   setTimeout(() => { d.style.opacity = "0"; d.style.transition = "opacity .3s";
-    setTimeout(() => d.remove(), 300); }, etichetta ? 6000 : 2600);
+    setTimeout(() => d.remove(), 300); }, etichetta ? 6000 : 2800);
 }
-function apri(id){ $("#"+id).hidden = false; }
-function chiudi(id){ $("#"+id).hidden = true; }
-function conferma(titolo, testo, ok){
-  $("#cTitolo").textContent = titolo; $("#cTesto").textContent = testo;
+const apri   = id => { $("#"+id).hidden = false; };
+const chiudi = id => { $("#"+id).hidden = true; };
+function conferma(titolo, testo, ok, extra, etichettaOk){
+  $("#cTitolo").textContent = titolo;
+  $("#cTesto").textContent = testo;
+  $("#cExtra").innerHTML = extra || "";
   const b = $("#cOk"), nb = b.cloneNode(true); b.replaceWith(nb);
-  nb.onclick = () => { chiudi("mConf"); ok(); };
+  nb.textContent = etichettaOk || "Elimina";
+  nb.onclick = () => { const r = ok(); if(r !== false) chiudi("mConf"); };
   apri("mConf");
 }
 function stato(testo, errore){
-  const e = $("#sync"); e.textContent = testo || ""; e.className = "sync" + (errore ? " ko" : "");
+  const e = $("#sync"); e.textContent = testo || ""; e.style.color = errore ? "#ffd9d9" : "";
 }
 
 /* =====================================================================
-   ACCESSO
+   AVVIO E ACCESSO
    ===================================================================== */
 function configurato(){
   if(!window.CONFIG) return false;
   const u = String(CONFIG.SUPABASE_URL || "").trim(), k = String(CONFIG.SUPABASE_ANON || "").trim();
-  if(/INCOLLA/i.test(u) || /INCOLLA/i.test(k)) return false;   // valori di esempio non sostituiti
+  if(/INCOLLA/i.test(u) || /INCOLLA/i.test(k)) return false;
   return /^https?:\/\/[^\s/]+/.test(u) && k.length > 20;
 }
 async function avvia(){
@@ -100,12 +131,13 @@ async function avvia(){
     console.error(e);
     if(window.__erroreFatale)
       window.__erroreFatale("Si è verificato un errore durante l'avvio.", e.message,
-        "i valori in js/config.js e che lo script dello schema sia stato eseguito su Supabase.");
+        "i valori in config.js e che gli script dello schema siano stati eseguiti su Supabase.");
     else alert("Errore all'avvio: " + e.message);
   }
 }
 async function avviaDavvero(){
-  $("#fRic").innerHTML = RICORRENZE.map(r => `<option>${r}</option>`).join("");
+  leggiPref();
+  applicaTema();
   collegaEventi();
 
   if(!configurato()){
@@ -120,6 +152,7 @@ async function avviaDavvero(){
   if(!window.supabase || typeof window.supabase.createClient !== "function")
     throw new Error("La libreria supabase.min.js non è stata caricata: controlla che il file "
       + "sia presente nel repository accanto a index.html.");
+
   sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON, {
     auth:{ persistSession:true, autoRefreshToken:true }
   });
@@ -128,12 +161,11 @@ async function avviaDavvero(){
   if(data.session) await entrato(data.session.user); else $("#login").hidden = false;
 
   sb.auth.onAuthStateChange((evento, sessione) => {
-    if(evento === "SIGNED_OUT"){ location.reload(); }
+    if(evento === "SIGNED_OUT") location.reload();
     else if(sessione && !S.utente) entrato(sessione.user);
   });
 
-  if("serviceWorker" in navigator)
-    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 }
 async function accedi(e){
   e.preventDefault();
@@ -155,6 +187,7 @@ async function entrato(utente){
   $("#login").hidden = true; $("#app").hidden = false;
   $("#btnAccount").textContent = iniziali(utente.email);
   mostraCache();
+  await caricaElenchi();
   await Promise.all([ caricaMembri(), carica() ]);
   ascolta();
   aggiornaStatoPush();
@@ -166,8 +199,31 @@ async function entrato(utente){
 function mostraCache(){
   try{
     const c = JSON.parse(localStorage.getItem("cache-attivita") || "null");
-    if(c && Array.isArray(c.righe)){ S.righe = c.righe; disegna(); stato("dati locali"); }
+    if(c && Array.isArray(c.righe)){ S.righe = c.righe; S.tag = c.tag || []; S.priorita = c.priorita || [];
+      S.ricorrenze = c.ricorrenze || []; disegna(); stato("dati locali"); }
   }catch(e){}
+}
+function salvaCache(){
+  try{ localStorage.setItem("cache-attivita", JSON.stringify({
+    righe:S.righe, tag:S.tag, priorita:S.priorita, ricorrenze:S.ricorrenze, il:Date.now() })); }catch(e){}
+}
+async function caricaElenchi(){
+  const [t, v] = await Promise.all([
+    sb.from("tag").select("*").order("ordine", { ascending:true }),
+    sb.from("valori").select("*").order("ordine", { ascending:true })
+  ]);
+  if(t.error || v.error){
+    const msg = (t.error || v.error).message;
+    if(/relation|does not exist|schema cache/i.test(msg))
+      throw new Error("Le tabelle «tag» e «valori» non esistono ancora: esegui su Supabase lo script "
+        + "aggiornamento-2.sql (SQL Editor → New query → incolla → Run).");
+    throw new Error(msg);
+  }
+  S.tag = t.data || [];
+  S.priorita   = (v.data || []).filter(x => x.tipo === "priorita");
+  S.ricorrenze = (v.data || []).filter(x => x.tipo === "ricorrenza");
+  if(!S.ricorrenze.length) S.ricorrenze = [{ nome:"Nessuna", giorni:0, mesi:0, ordine:0 }];
+  if(!S.priorita.length)   S.priorita   = [{ nome:"Media", colore:"#9a6414", ordine:0 }];
 }
 async function caricaMembri(){
   const { data, error } = await sb.from("membri").select("id,nome,colore");
@@ -178,18 +234,20 @@ async function caricaMembri(){
 async function carica(){
   stato("aggiorno…");
   const { data, error } = await sb.from("attivita").select("*").order("scadenza", { ascending:true });
-  if(error){ stato("offline", true); avviso("Dati non aggiornati: " + error.message); return; }
+  if(error){ stato("non aggiornato", true); avviso("Dati non aggiornati: " + error.message); return; }
   S.righe = data || [];
-  try{ localStorage.setItem("cache-attivita", JSON.stringify({ righe:S.righe, il:Date.now() })); }catch(e){}
+  salvaCache();
   stato("");
   disegna();
 }
 function ascolta(){
   if(S.canale) return;
-  S.canale = sb.channel("attivita-live")
-    .on("postgres_changes", { event:"*", schema:"public", table:"attivita" }, () => {
-      clearTimeout(ascolta._t); ascolta._t = setTimeout(carica, 400);
-    })
+  const ricarica = () => { clearTimeout(ascolta._t); ascolta._t = setTimeout(async () => {
+    await caricaElenchi().catch(()=>{}); await carica(); }, 400); };
+  S.canale = sb.channel("tutto-live")
+    .on("postgres_changes", { event:"*", schema:"public", table:"attivita" }, ricarica)
+    .on("postgres_changes", { event:"*", schema:"public", table:"tag" }, ricarica)
+    .on("postgres_changes", { event:"*", schema:"public", table:"valori" }, ricarica)
     .subscribe();
   document.addEventListener("visibilitychange", () => { if(!document.hidden) carica(); });
 }
@@ -209,36 +267,41 @@ async function eliminaAttivita(id){
 async function spunta(id){
   const r = S.righe.find(x => x.id === id); if(!r) return;
   const fatto = !r.fatto;
-  r.fatto = fatto; r.in_data = fatto ? oggi() : null; disegna();   // risposta immediata
+  r.fatto = fatto; r.in_data = fatto ? oggi() : null; disegna();
   const { error } = await sb.from("attivita").update({ fatto, in_data: fatto ? oggi() : null }).eq("id", id);
   if(error){ avviso("Non aggiornata: " + error.message); return carica(); }
-  if(fatto && r.ricorrenza && r.ricorrenza !== "Nessuna"){
+  if(fatto){
     const nuova = prossima(r.scadenza, r.ricorrenza);
-    await sb.from("attivita").insert({
-      tag:r.tag, descrizione:r.descrizione, scadenza:nuova, fatto:false, in_data:null,
-      priorita:r.priorita, ricorrenza:r.ricorrenza, importo:r.importo,
-      privata:r.privata, autore:S.utente.id
-    });
-    avviso("Fatta ✓ — prossima il " + fmt(nuova));
+    if(nuova){
+      await sb.from("attivita").insert({
+        tag:r.tag, descrizione:r.descrizione, scadenza:nuova, fatto:false, in_data:null,
+        priorita:r.priorita, ricorrenza:r.ricorrenza, importo:r.importo,
+        privata:r.privata, autore:S.utente.id
+      });
+      avviso("Fatta ✓ — prossima il " + fmt(nuova));
+    }
   }
   carica();
 }
 
 /* =====================================================================
-   FILTRI E ORDINAMENTO
+   FILTRI
    ===================================================================== */
-function situazione(r){
-  if(r.fatto) return "fatta";
-  if(!r.scadenza) return "senzadata";
+function fascia(r){
+  if(r.fatto) return { k:5, t:"Completate", cls:"" };
+  if(!r.scadenza) return { k:4, t:"Senza scadenza", cls:"" };
   const d = giorni(oggi(), r.scadenza);
-  return d < 0 ? "late" : d === 0 ? "today" : d <= 7 ? "soon" : "futura";
+  if(d < 0)  return { k:0, t:"In ritardo", cls:"late" };
+  if(d === 0) return { k:1, t:"Oggi", cls:"today" };
+  if(d <= PREF.giorni) return { k:2, t:"Prossimi " + PREF.giorni + " giorni", cls:"" };
+  return { k:3, t:"Più avanti", cls:"" };
 }
 function ordina(arr, chiave){
   return [...arr].sort((x,y) => {
     let v = 0;
     if(chiave === "scadenza"){ const a = x.scadenza||"9999-12-31", b = y.scadenza||"9999-12-31"; v = a<b?-1:a>b?1:0; }
-    else if(chiave === "priorita") v = PESO[x.priorita] - PESO[y.priorita];
-    else if(chiave === "importo")  v = (y.importo||0) - (x.importo||0);
+    else if(chiave === "priorita") v = pesoPrio(x.priorita) - pesoPrio(y.priorita);
+    else if(chiave === "importo")  v = (+y.importo||0) - (+x.importo||0);
     else v = String(x[chiave]||"").localeCompare(String(y[chiave]||""), "it", { sensitivity:"base" });
     if(v === 0){ const a = x.scadenza||"9999-12-31", b = y.scadenza||"9999-12-31"; v = a<b?-1:a>b?1:0; }
     if(v === 0) v = String(x.descrizione||"").localeCompare(String(y.descrizione||""), "it");
@@ -253,10 +316,11 @@ function filtrate(){
     if(f.chi === "mie" && r.autore !== S.utente.id) return false;
     if(f.chi === "private" && !r.privata) return false;
     if(f.chi === "condivise" && r.privata) return false;
-    if(f.tag.size && !f.tag.has(r.tag || "GENERALE")) return false;
-    if(f.quando === "late" && !(r.scadenza && giorni(oggi(), r.scadenza) < 0)) return false;
+    if(f.tag.size && !f.tag.has(r.tag || "")) return false;
+    if(f.quando === "late"  && !(r.scadenza && giorni(oggi(), r.scadenza) < 0)) return false;
     if(f.quando === "today" && !(r.scadenza && giorni(oggi(), r.scadenza) === 0)) return false;
-    if(f.quando === "7" && !(r.scadenza && giorni(oggi(), r.scadenza) >= 0 && giorni(oggi(), r.scadenza) <= 7)) return false;
+    if(f.quando === "w" && !(r.scadenza && giorni(oggi(), r.scadenza) >= 0
+        && giorni(oggi(), r.scadenza) <= PREF.giorni)) return false;
     if(f.quando === "pay" && r.importo == null) return false;
     if(q && !((r.descrizione||"").toLowerCase().includes(q) || (r.tag||"").toLowerCase().includes(q))) return false;
     return true;
@@ -267,36 +331,57 @@ function filtrate(){
 /* =====================================================================
    DISEGNO
    ===================================================================== */
-function disegna(){ indicatori(); barraTag(); elenco(); calendario(); tagReport(); anteprima(); }
+function disegna(){ testata(); barraTag(); elenco(); calendario(); tagReport(); anteprima(); }
 
-function indicatori(){
+function testata(){
+  const ora = new Date().getHours();
+  const nome = S.membri[S.utente && S.utente.id] ? S.membri[S.utente.id].nome.split(" ")[0] : "";
+  $("#saluto").textContent = (ora < 5 ? "Buonanotte" : ora < 13 ? "Buongiorno"
+    : ora < 18 ? "Buon pomeriggio" : "Buonasera") + (nome ? ", " + nome : "");
   const t = oggi(), da = S.righe.filter(r => !r.fatto);
-  const n = (f) => da.filter(f).length;
-  $("#k1").textContent = n(r => r.scadenza && giorni(t,r.scadenza) < 0);
-  $("#k2").textContent = n(r => r.scadenza && giorni(t,r.scadenza) === 0);
-  $("#k3").textContent = n(r => r.scadenza && giorni(t,r.scadenza) > 0 && giorni(t,r.scadenza) <= 7);
+  const tardi = da.filter(r => r.scadenza && giorni(t,r.scadenza) < 0).length;
+  const diOggi = da.filter(r => r.scadenza && giorni(t,r.scadenza) === 0).length;
+  const parti = [];
+  if(tardi)  parti.push(tardi + (tardi===1 ? " attività in ritardo" : " attività in ritardo"));
+  if(diOggi) parti.push(diOggi + (diOggi===1 ? " scadenza oggi" : " scadenze oggi"));
+  $("#sottotitolo").textContent = parti.length ? parti.join(" · ")
+    : da.length ? da.length + (da.length===1 ? " attività da fare" : " attività da fare")
+                : "Non c'è nulla in sospeso";
+
+  const n = f => da.filter(f).length;
+  $("#k1").textContent = tardi;
+  $("#k2").textContent = diOggi;
+  $("#k3").textContent = n(r => r.scadenza && giorni(t,r.scadenza) > 0 && giorni(t,r.scadenza) <= PREF.giorni);
+  $("#k3l").textContent = PREF.giorni + " giorni";
   $("#k4").textContent = da.length;
   const tot = da.reduce((s,r) => s + (+r.importo||0), 0);
   $("#k5").textContent = tot ? eur(tot) : "—";
-  $$(".kpi").forEach(k => k.classList.toggle("on",
-    (S.filtri.quando||"") === ({ late:"late", today:"today", w:"7", pay:"pay", todo:"" })[k.dataset.k]
-    && (k.dataset.k !== "todo" || !S.filtri.quando)));
+  $$(".kpi").forEach(k => {
+    k.hidden = !PREF.kpi.includes(k.dataset.k);
+    const atteso = { late:"late", today:"today", w:"w", todo:"", pay:"pay" }[k.dataset.k];
+    k.classList.toggle("on", !!S.filtri.quando && S.filtri.quando === atteso);
+  });
 }
 function barraTag(){
   const bar = $("#tagbar"), conta = {};
   S.righe.forEach(r => { if(S.filtri.stato === "todo" && r.fatto) return;
-    const k = r.tag || "GENERALE"; conta[k] = (conta[k]||0) + 1; });
+    const k = r.tag || ""; conta[k] = (conta[k]||0) + 1; });
   bar.innerHTML = "";
   const t0 = document.createElement("button");
-  t0.className = "chip" + (S.filtri.tag.size ? "" : " on"); t0.textContent = "Tutti";
+  t0.className = "chip" + (S.filtri.tag.size ? "" : " on");
+  if(!S.filtri.tag.size) t0.style.background = "var(--accent)";
+  t0.textContent = "Tutti";
   t0.onclick = () => { S.filtri.tag.clear(); disegna(); };
   bar.appendChild(t0);
-  tuttiTag().forEach(t => {
+  nomiTag().forEach(t => {
+    if(!conta[t] && !S.filtri.tag.has(t)) return;            // mostra solo i tag in uso
     const on = S.filtri.tag.has(t), c = colTag(t), b = document.createElement("button");
     b.className = "chip" + (on ? " on" : "");
-    if(!on){ b.style.background = c.bg; b.style.color = c.fg; b.style.borderColor = "transparent"; }
+    b.style.background = on ? c.forte : c.tenue;
+    b.style.color = on ? "#fff" : c.forte;
+    b.style.borderColor = "transparent";
     b.innerHTML = esc(t) + `<span class="c">${conta[t]||0}</span>`;
-    b.onclick = () => { S.filtri.tag.has(t) ? S.filtri.tag.delete(t) : S.filtri.tag.add(t); disegna(); };
+    b.onclick = () => { on ? S.filtri.tag.delete(t) : S.filtri.tag.add(t); disegna(); };
     bar.appendChild(b);
   });
 }
@@ -307,42 +392,56 @@ function rigaScadenza(r){
   if(!r.fatto){
     if(d < 0){ cls = "late"; txt += " · in ritardo di " + Math.abs(d) + (Math.abs(d)===1?" giorno":" giorni"); }
     else if(d === 0){ cls = "today"; txt += " · oggi"; }
-    else if(d <= 7){ txt += " · tra " + d + (d===1?" giorno":" giorni"); }
+    else if(d <= PREF.giorni){ txt += " · tra " + d + (d===1?" giorno":" giorni"); }
   }
   return `<span class="scad ${cls}">${txt}</span>`;
+}
+function schedaAttivita(r){
+  const c = colTag(r.tag);
+  const d = document.createElement("div");
+  const tardi = !r.fatto && r.scadenza && giorni(oggi(), r.scadenza) < 0;
+  d.className = "card" + (r.fatto ? " fatta" : "") + (tardi ? " ritardo" : "");
+  d.style.setProperty("--c", c.forte);
+  d.innerHTML = `
+    <button class="spunta ${r.fatto?"on":""}" aria-label="Segna come fatta">
+      ${r.fatto?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg>':""}
+    </button>
+    <div class="corpocard">
+      <div class="desc">${esc(r.descrizione)}</div>
+      <div class="meta">
+        ${r.tag?`<span class="tagb" style="background:${c.tenue};color:${c.forte}">${esc(r.tag)}</span>`:""}
+        ${rigaScadenza(r)}
+        <span class="prio" style="color:${colPrio(r.priorita)}"><i></i>${esc(r.priorita||"")}</span>
+        ${r.importo!=null?`<span class="soldi">${eur(r.importo)}</span>`:""}
+        ${r.ricorrenza&&passoRic(r.ricorrenza)&&(passoRic(r.ricorrenza).giorni||passoRic(r.ricorrenza).mesi)
+          ?`<span class="pill">↻ ${esc(r.ricorrenza)}</span>`:""}
+        ${r.privata?`<span class="pill priv">🔒 privata</span>`:`<span class="pill">${esc(nomeDi(r.autore))}</span>`}
+        ${r.fatto&&r.in_data?`<span class="pill">fatta il ${fmt(r.in_data)}</span>`:""}
+      </div>
+    </div>`;
+  d.querySelector(".spunta").onclick = e => { e.stopPropagation(); spunta(r.id); };
+  d.querySelector(".corpocard").onclick = () => modale(r.id);
+  return d;
 }
 function elenco(){
   const righe = filtrate(), box = $("#lista");
   box.innerHTML = ""; $("#vuoto").hidden = righe.length > 0;
   const frag = document.createDocumentFragment();
-  righe.forEach(r => {
-    const c = colTag(r.tag || "GENERALE");
-    const d = document.createElement("div");
-    d.className = "card" + (r.fatto ? " fatta" : "");
-    d.innerHTML = `
-      <button class="spunta ${r.fatto?"on":""}" aria-label="Segna come fatta">
-        ${r.fatto?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg>':""}
-      </button>
-      <div class="corpocard">
-        <div class="desc">${esc(r.descrizione)}</div>
-        <div class="meta">
-          <span class="tagb" style="background:${c.bg};color:${c.fg}">${esc(r.tag||"GENERALE")}</span>
-          ${rigaScadenza(r)}
-          <span class="prio p-${(r.priorita||"Media").toLowerCase()}"><i></i>${r.priorita}</span>
-          ${r.importo!=null?`<span class="soldi">${eur(r.importo)}</span>`:""}
-          ${r.ricorrenza&&r.ricorrenza!=="Nessuna"?`<span class="pill">↻ ${r.ricorrenza}</span>`:""}
-          ${r.privata?`<span class="pill priv">🔒 privata</span>`:`<span class="pill">${esc(nomeDi(r.autore))}</span>`}
-          ${r.fatto&&r.in_data?`<span class="pill">fatta il ${fmt(r.in_data)}</span>`:""}
-        </div>
-      </div>`;
-    d.querySelector(".spunta").onclick = e => { e.stopPropagation(); spunta(r.id); };
-    d.querySelector(".corpocard").onclick = () => modale(r.id);
-    frag.appendChild(d);
-  });
+  if(PREF.gruppi && S.filtri.ord === "scadenza"){
+    const gruppi = {};
+    righe.forEach(r => { const f = fascia(r); (gruppi[f.t] = gruppi[f.t] || { k:f.k, cls:f.cls, r:[] }).r.push(r); });
+    Object.entries(gruppi).sort((a,b) => a[1].k - b[1].k).forEach(([nome, g]) => {
+      const h = document.createElement("div");
+      h.className = "gruppoTit " + g.cls;
+      h.innerHTML = `<span>${esc(nome)}</span><span class="c">${g.r.length}</span>`;
+      frag.appendChild(h);
+      g.r.forEach(r => frag.appendChild(schedaAttivita(r)));
+    });
+  } else righe.forEach(r => frag.appendChild(schedaAttivita(r)));
   box.appendChild(frag);
 }
 
-/* ------------------------------------------------------- calendario */
+/* ---------------------------- calendario ----------------------------- */
 function calendario(){
   if(S.vista !== "calendario") return;
   const y = S.cal.getFullYear(), m = S.cal.getMonth();
@@ -351,7 +450,7 @@ function calendario(){
   inizio.setDate(1 - ((primo.getDay() + 6) % 7));
   const perGiorno = {};
   S.righe.forEach(r => { if(!r.scadenza || r.fatto) return;
-    if(S.filtri.tag.size && !S.filtri.tag.has(r.tag || "GENERALE")) return;
+    if(S.filtri.tag.size && !S.filtri.tag.has(r.tag || "")) return;
     (perGiorno[r.scadenza] = perGiorno[r.scadenza] || []).push(r); });
 
   let html = GG.map(g => `<div class="dow">${g}</div>`).join("");
@@ -363,8 +462,8 @@ function calendario(){
     if(d.getMonth() !== m) cls.push("out");
     if(iso === t) cls.push("oggi");
     if(iso === S.calSel) cls.push("scelto");
-    const punti = ev.slice(0,4).map(r => { const c = colTag(r.tag||"GENERALE");
-      return `<span class="punto" style="background:${scuro()?c.bg:c.fg}"></span>`; }).join("");
+    const punti = ev.slice(0,4).map(r =>
+      `<span class="punto" style="background:${colTag(r.tag).forte}"></span>`).join("");
     html += `<button class="${cls.join(" ")}" data-d="${iso}"><span class="dn">${d.getDate()}</span>
              <span class="punti">${punti}</span></button>`;
   }
@@ -376,58 +475,52 @@ function pannelloGiorno(perGiorno){
   const p = $("#giorno");
   if(!S.calSel){ p.innerHTML = `<p class="note">Tocca un giorno per vedere le scadenze.</p>`; return; }
   const d = daISO(S.calSel), ev = perGiorno[S.calSel] || [];
-  p.innerHTML = `<h3>${GG[(d.getDay()+6)%7]} ${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()} — ${ev.length} ${ev.length===1?"attività":"attività"}</h3>
+  p.innerHTML = `<h3>${GG[(d.getDay()+6)%7]} ${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()} —
+      ${ev.length} ${ev.length===1?"attività":"attività"}</h3>
     <div class="lista" id="listaGiorno"></div>
-    <button class="btn wide" id="aggiungiQui" style="margin-top:10px">+ Attività il ${fmt(S.calSel)}</button>`;
+    <button class="btn wide" id="aggiungiQui" style="margin-top:12px">+ Attività il ${fmt(S.calSel)}</button>`;
   const box = $("#listaGiorno");
   if(!ev.length) box.innerHTML = `<p class="note">Nessuna scadenza in questa data.</p>`;
-  ordina(ev, "priorita").forEach(r => {
-    const c = colTag(r.tag || "GENERALE");
-    const el = document.createElement("div");
-    el.className = "card";
-    el.innerHTML = `<button class="spunta" aria-label="Segna come fatta"></button>
-      <div class="corpocard"><div class="desc">${esc(r.descrizione)}</div>
-      <div class="meta"><span class="tagb" style="background:${c.bg};color:${c.fg}">${esc(r.tag||"GENERALE")}</span>
-      <span class="prio p-${(r.priorita||"Media").toLowerCase()}"><i></i>${r.priorita}</span>
-      ${r.importo!=null?`<span class="soldi">${eur(r.importo)}</span>`:""}
-      ${r.privata?`<span class="pill priv">🔒 privata</span>`:""}</div></div>`;
-    el.querySelector(".spunta").onclick = e => { e.stopPropagation(); spunta(r.id); };
-    el.querySelector(".corpocard").onclick = () => modale(r.id);
-    box.appendChild(el);
-  });
+  else ordina(ev, "priorita").forEach(r => box.appendChild(schedaAttivita(r)));
   $("#aggiungiQui").onclick = () => { modale(null); $("#fScad").value = S.calSel; };
 }
 
 /* =====================================================================
    MODALE ATTIVITÀ
    ===================================================================== */
+function riempiSelect(sel, valori, scelto){
+  sel.innerHTML = valori.map(v => `<option value="${esc(v)}"${v===scelto?" selected":""}>${esc(v)}</option>`).join("");
+  if(scelto && !valori.includes(scelto))                       // valore non più in elenco: lo conserva
+    sel.insertAdjacentHTML("afterbegin", `<option value="${esc(scelto)}" selected>${esc(scelto)} (non in elenco)</option>`);
+}
 function modale(id){
   S.modifica = id || null;
   const r = id ? S.righe.find(x => x.id === id) : null;
+  const tagIniziale = r ? r.tag
+    : (S.filtri.tag.size === 1 ? [...S.filtri.tag][0] : (PREF.tag || nomiTag()[0] || ""));
   $("#mTitolo").textContent = r ? "Modifica attività" : "Nuova attività";
   $("#fDesc").value   = r ? r.descrizione : "";
-  $("#fTag").value    = r ? (r.tag||"") : (S.filtri.tag.size === 1 ? [...S.filtri.tag][0] : "");
-  $("#fPrio").value   = r ? r.priorita : "Media";
+  riempiSelect($("#fTag"),  nomiTag(), tagIniziale);
+  riempiSelect($("#fPrio"), S.priorita.map(p => p.nome), r ? r.priorita : (PREF.prio || S.priorita[0].nome));
+  riempiSelect($("#fRic"),  S.ricorrenze.map(x => x.nome), r ? r.ricorrenza : (PREF.ric || S.ricorrenze[0].nome));
   $("#fScad").value   = r && r.scadenza ? r.scadenza : "";
-  $("#fRic").value    = r ? r.ricorrenza : "Nessuna";
   $("#fImp").value    = r && r.importo != null ? r.importo : "";
   $("#fPriv").checked = r ? !!r.privata : false;
   $("#fFatto").value  = r && r.fatto ? "si" : "no";
   $("#fInData").value = r && r.in_data ? r.in_data : "";
-  $("#dlTags").innerHTML = tuttiTag().map(t => `<option value="${esc(t)}">`).join("");
   const mio = !r || r.autore === S.utente.id;
   $("#btnElimina").hidden = !r;
   $("#mAutore").textContent = r ? "Inserita da " + nomeDi(r.autore) : "";
   $("#fPriv").disabled = r && !mio;
   apri("mAtt");
-  if(!r) setTimeout(() => $("#fDesc").focus(), 60);
+  if(!r) setTimeout(() => $("#fDesc").focus(), 80);
 }
 async function salvaDaModale(){
   const desc = $("#fDesc").value.trim();
   if(!desc){ $("#fDesc").focus(); avviso("La descrizione è obbligatoria"); return; }
   const fatto = $("#fFatto").value === "si";
   const dati = {
-    tag: ($("#fTag").value.trim() || "GENERALE").toUpperCase(),
+    tag: $("#fTag").value,
     descrizione: desc,
     scadenza: $("#fScad").value || null,
     priorita: $("#fPrio").value,
@@ -444,42 +537,40 @@ async function salvaDaModale(){
 }
 
 /* =====================================================================
-   REPORT STAMPABILE
+   REPORT
    ===================================================================== */
 function tagReport(){
   const box = $("#rTags"); if(!box) return;
   box.innerHTML = "";
-  tuttiTag().forEach(t => {
+  const usati = [...new Set(S.righe.map(r => r.tag || "").filter(Boolean))];
+  const elenco = nomiTag().filter(t => usati.includes(t));
+  elenco.forEach(t => {
     const on = !S.reportEsclusi.has(t), c = colTag(t), b = document.createElement("button");
     b.className = "chip" + (on ? " on" : "");
-    if(on){ b.style.background = c.bg; b.style.color = c.fg; b.style.borderColor = "transparent"; }
+    b.style.background = on ? c.forte : "transparent";
+    b.style.color = on ? "#fff" : "var(--ink-soft)";
+    b.style.borderColor = on ? "transparent" : "var(--line-strong)";
     b.textContent = t;
     b.onclick = () => { on ? S.reportEsclusi.add(t) : S.reportEsclusi.delete(t); tagReport(); anteprima(); };
     box.appendChild(b);
   });
+  const dentro = elenco.filter(t => !S.reportEsclusi.has(t)).length;
+  $("#rConteggioTag").textContent = elenco.length ? `(${dentro} di ${elenco.length})` : "";
 }
 function righeReport(){
-  const stato = $("#rStato").value, quando = $("#rQuando").value, conPriv = $("#rPriv").checked;
+  const st = $("#rStato").value, quando = $("#rQuando").value, conPriv = $("#rPriv").checked;
   const out = S.righe.filter(r => {
-    if(stato === "todo" && r.fatto) return false;
-    if(stato === "done" && !r.fatto) return false;
+    if(st === "todo" && r.fatto) return false;
+    if(st === "done" && !r.fatto) return false;
+    if(r.privata && !conPriv && r.autore !== S.utente.id) return false;
     if(r.privata && !conPriv) return false;
-    if(S.reportEsclusi.has(r.tag || "GENERALE")) return false;
+    if(r.tag && S.reportEsclusi.has(r.tag)) return false;
     if(quando === "none") return !r.scadenza;
-    if(quando === "late") return r.scadenza && giorni(oggi(), r.scadenza) < 0;
+    if(quando === "late") return !!r.scadenza && giorni(oggi(), r.scadenza) < 0;
     if(quando){ if(!r.scadenza) return false; return giorni(oggi(), r.scadenza) <= +quando; }
     return true;
   });
   return ordina(out, $("#rOrd").value);
-}
-function fascia(r){
-  if(!r.scadenza) return { k:9, t:"Senza scadenza" };
-  const d = giorni(oggi(), r.scadenza);
-  if(d < 0) return { k:0, t:"Scadute" };
-  if(d === 0) return { k:1, t:"Oggi" };
-  if(d <= 7) return { k:2, t:"Prossimi 7 giorni" };
-  if(d <= 31) return { k:3, t:"Entro il mese" };
-  return { k:4, t:"Oltre il mese" };
 }
 function documento(){
   const righe = righeReport();
@@ -487,13 +578,14 @@ function documento(){
               imp:$("#rImp").checked, ric:$("#rRic").checked, chi:$("#rChi").checked, gruppo:$("#rGruppo").value };
   const ora = new Date();
   const stampa = pad(ora.getDate())+"/"+pad(ora.getMonth()+1)+"/"+ora.getFullYear();
-  const sel = tuttiTag().filter(t => !S.reportEsclusi.has(t));
-  const etTag = sel.length === tuttiTag().length ? "tutte le aree" : (sel.join(" · ") || "nessuna area selezionata");
+  const usati = [...new Set(S.righe.map(r => r.tag || "").filter(Boolean))];
+  const sel = usati.filter(t => !S.reportEsclusi.has(t));
+  const etTag = sel.length >= usati.length ? "tutte le aree" : (sel.join(" · ") || "nessuna area selezionata");
   const etStato = { todo:"solo attività da fare", all:"tutte le attività", done:"solo attività completate" }[$("#rStato").value];
 
   let gruppi;
   if(o.gruppo === "tag"){
-    const m = {}; righe.forEach(r => { const k = r.tag || "GENERALE"; (m[k] = m[k] || []).push(r); });
+    const m = {}; righe.forEach(r => { const k = r.tag || "(senza tag)"; (m[k] = m[k] || []).push(r); });
     gruppi = Object.keys(m).sort((a,b)=>a.localeCompare(b,"it")).map(k => [k, m[k]]);
   } else if(o.gruppo === "quando"){
     const m = {}; righe.forEach(r => { const f = fascia(r); (m[f.t] = m[f.t] || { k:f.k, r:[] }).r.push(r); });
@@ -510,10 +602,10 @@ function documento(){
             const tardi = !r.fatto && r.scadenza && giorni(oggi(), r.scadenza) < 0;
             return `<tr class="${r.fatto?"done":""}">
               ${o.box?`<td class="bx"><span class="${r.fatto?"f":""}"></span></td>`:""}
-              ${o.prio?`<td class="pr">${r.priorita==="Alta"?"!":r.priorita==="Media"?"·":""}</td>`:""}
+              ${o.prio?`<td class="pr">${pesoPrio(r.priorita)===0?"!":pesoPrio(r.priorita)===1?"·":""}</td>`:""}
               <td>${esc(r.descrizione)}${o.gruppo!=="tag"&&r.tag?` <span class="rg">[${esc(r.tag)}]</span>`:""}${r.privata?` <span class="rg">(privata)</span>`:""}</td>
               ${o.chi?`<td class="rg">${esc(nomeDi(r.autore))}</td>`:""}
-              ${o.ric?`<td class="rg">${r.ricorrenza!=="Nessuna"?"↻ "+r.ricorrenza:""}</td>`:""}
+              ${o.ric?`<td class="rg">${passoRic(r.ricorrenza)&&(passoRic(r.ricorrenza).giorni||passoRic(r.ricorrenza).mesi)?"↻ "+esc(r.ricorrenza):""}</td>`:""}
               ${o.data?`<td class="dt ${tardi?"late":""}">${r.scadenza?fmt(r.scadenza):"—"}</td>`:""}
               ${o.imp?`<td class="am">${r.importo!=null?eur(r.importo):""}</td>`:""}
             </tr>`; }).join("")}</table>
@@ -528,13 +620,281 @@ function documento(){
     </div>${corpo}
     <div class="foot"><span>Attività e Scadenze di famiglia</span><span>${esc(nomeDi(S.utente && S.utente.id))}</span></div></div>`;
 }
-function anteprima(){ if(S.vista === "report") $("#anteprima").innerHTML = documento(); }
+/* L'anteprima e il documento da stampare vengono tenuti sempre allineati:
+   così anche la stampa avviata dal menù del browser produce il report. */
+function anteprima(){
+  if(S.vista !== "report") return;
+  const d = documento();
+  $("#anteprima").innerHTML = d;
+  $("#stampa").innerHTML = d;
+  const n = righeReport().length;
+  $("#rConteggio").textContent = n ? (n === 1 ? "1 attività nel report" : n + " attività nel report")
+                                   : "Nessuna attività con questi criteri";
+}
 function stampaReport(){
   $("#stampa").innerHTML = documento();
-  const t = document.title;
-  document.title = $("#rTitolo").value || "Elenco attività";
-  window.print();
-  setTimeout(() => { document.title = t; $("#stampa").innerHTML = ""; }, 900);
+  const titolo = document.title;
+  document.title = ($("#rTitolo").value || "Elenco attività");
+  const ripristina = () => { document.title = titolo; window.removeEventListener("afterprint", ripristina); };
+  window.addEventListener("afterprint", ripristina);
+  setTimeout(() => window.print(), 60);          // lascia al browser il tempo di comporre la pagina
+}
+
+/* =====================================================================
+   IMPOSTAZIONI: tag, priorità, ricorrenze
+   ===================================================================== */
+const usiTag  = n => S.righe.filter(r => (r.tag||"") === n).length;
+const usiPrio = n => S.righe.filter(r => (r.priorita||"") === n).length;
+const usiRic  = n => S.righe.filter(r => (r.ricorrenza||"") === n).length;
+
+function disegnaImpostazioni(){
+  if(S.vista !== "impostazioni") return;
+  /* ---- tag ---- */
+  const bt = $("#listaTag"); bt.innerHTML = "";
+  S.tag.forEach((t,i) => {
+    const r = document.createElement("div");
+    r.className = "rigaConf";
+    r.innerHTML = `
+      <div class="frecce"><button data-su title="Sposta su">▲</button><button data-giu title="Sposta giù">▼</button></div>
+      <input type="color" value="${t.colore}" title="Colore">
+      <input type="text" value="${esc(t.nome)}" maxlength="30">
+      <span class="usi">${usiTag(t.nome)} attività</span>
+      <button class="iconbtn" title="Elimina"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>`;
+    const [su, giu] = r.querySelectorAll(".frecce button");
+    su.disabled = i === 0; giu.disabled = i === S.tag.length - 1;
+    su.onclick  = () => spostaTag(i, -1);
+    giu.onclick = () => spostaTag(i, +1);
+    r.querySelector('input[type=color]').onchange = e => aggiornaTag(t, { colore:e.target.value });
+    const testo = r.querySelector('input[type=text]');
+    testo.onblur = () => { const nuovo = testo.value.trim().toUpperCase();
+      if(nuovo && nuovo !== t.nome) rinominaTag(t, nuovo); else testo.value = t.nome; };
+    testo.onkeydown = e => { if(e.key === "Enter") testo.blur(); };
+    r.querySelector(".iconbtn").onclick = () => eliminaTag(t);
+    bt.appendChild(r);
+  });
+
+  /* ---- priorità ---- */
+  const bp = $("#listaPrio"); bp.innerHTML = "";
+  S.priorita.forEach((p,i) => {
+    const r = document.createElement("div");
+    r.className = "rigaConf";
+    r.innerHTML = `
+      <div class="frecce"><button data-su>▲</button><button data-giu>▼</button></div>
+      <input type="color" value="${p.colore || '#5b6472'}" title="Colore">
+      <input type="text" value="${esc(p.nome)}" maxlength="20">
+      <span class="usi">${usiPrio(p.nome)} attività</span>
+      <button class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>`;
+    const [su, giu] = r.querySelectorAll(".frecce button");
+    su.disabled = i === 0; giu.disabled = i === S.priorita.length - 1;
+    su.onclick  = () => spostaValore(S.priorita, i, -1);
+    giu.onclick = () => spostaValore(S.priorita, i, +1);
+    r.querySelector('input[type=color]').onchange = e => aggiornaValore(p, { colore:e.target.value });
+    const testo = r.querySelector('input[type=text]');
+    testo.onblur = () => { const nuovo = testo.value.trim();
+      if(nuovo && nuovo !== p.nome) rinominaValore(p, nuovo, "priorita"); else testo.value = p.nome; };
+    testo.onkeydown = e => { if(e.key === "Enter") testo.blur(); };
+    r.querySelector(".iconbtn").onclick = () => eliminaValore(p, "priorita");
+    bp.appendChild(r);
+  });
+
+  /* ---- ricorrenze ---- */
+  const br = $("#listaRic"); br.innerHTML = "";
+  S.ricorrenze.forEach((v,i) => {
+    const fisso = !v.giorni && !v.mesi;                 // la voce «nessuna ricorrenza»
+    const r = document.createElement("div");
+    r.className = "rigaConf ric";
+    r.innerHTML = `
+      <div class="frecce"><button data-su>▲</button><button data-giu>▼</button></div>
+      <input type="text" value="${esc(v.nome)}" maxlength="24">
+      <button class="iconbtn"${fisso?" disabled style=\"opacity:.3\"":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+      <span class="passo"><span class="usi">${fisso ? "non si ripete" : "ogni"}</span>
+        <input type="number" min="0" max="999" value="${v.giorni}" title="giorni"><span class="usi">gg</span>
+        <input type="number" min="0" max="120" value="${v.mesi}" title="mesi"><span class="usi">mesi</span></span>`;
+    const [su, giu] = r.querySelectorAll(".frecce button");
+    su.disabled = i === 0; giu.disabled = i === S.ricorrenze.length - 1;
+    su.onclick  = () => spostaValore(S.ricorrenze, i, -1);
+    giu.onclick = () => spostaValore(S.ricorrenze, i, +1);
+    const [ng, nm] = r.querySelectorAll('input[type=number]');
+    if(fisso){ ng.disabled = nm.disabled = true; ng.style.opacity = nm.style.opacity = ".45"; }
+    ng.onchange = () => aggiornaValore(v, { giorni:+ng.value || 0 });
+    nm.onchange = () => aggiornaValore(v, { mesi:+nm.value || 0 });
+    const testo = r.querySelector('input[type=text]');
+    testo.onblur = () => { const nuovo = testo.value.trim();
+      if(nuovo && nuovo !== v.nome) rinominaValore(v, nuovo, "ricorrenza"); else testo.value = v.nome; };
+    testo.onkeydown = e => { if(e.key === "Enter") testo.blur(); };
+    if(!fisso) r.querySelector(".iconbtn").onclick = () => eliminaValore(v, "ricorrenza");
+    br.appendChild(r);
+  });
+
+  /* ---- preferenze ---- */
+  riempiSelect($("#defTag"),  ["(nessuno)", ...nomiTag()], PREF.tag || "(nessuno)");
+  riempiSelect($("#defPrio"), S.priorita.map(p => p.nome), PREF.prio || S.priorita[0].nome);
+  riempiSelect($("#defRic"),  S.ricorrenze.map(v => v.nome), PREF.ric || S.ricorrenze[0].nome);
+  $("#defGiorni").value = PREF.giorni;
+  $("#defTema").value = PREF.tema;
+  $("#defGruppi").checked = PREF.gruppi;
+  $$(".kpiOn").forEach(c => c.checked = PREF.kpi.includes(c.value));
+
+  /* ---- account ---- */
+  const m = S.membri[S.utente.id];
+  $("#accInfo").textContent = "Collegato come " + S.utente.email;
+  $("#accNome").value = m ? m.nome : "";
+  $("#elencoMembri").innerHTML = Object.values(S.membri).map(x => {
+    const c = colTag(x.nome);
+    return `<span class="membro"><span class="pal" style="background:${c.forte}">${esc(iniziali(x.nome))}</span>${esc(x.nome)}</span>`;
+  }).join("") || `<span class="note">Nessun altro membro registrato.</span>`;
+  $("#accVersione").textContent = "Versione dell'app: " + VERSIONE
+    + (navigator.serviceWorker && navigator.serviceWorker.controller ? " · copia locale attiva" : "");
+  aggiornaStatoPush();
+}
+
+async function nuovoTag(){
+  const nome = $("#nuovoTag").value.trim().toUpperCase();
+  if(!nome) return;
+  if(trovaTag(nome)){ avviso("Questo tag esiste già"); return; }
+  const ordine = S.tag.length ? Math.max(...S.tag.map(t => t.ordine)) + 10 : 0;
+  const { error } = await sb.from("tag").insert({ nome, colore:$("#nuovoTagColore").value, ordine });
+  if(error){ avviso("Non aggiunto: " + error.message); return; }
+  $("#nuovoTag").value = "";
+  await caricaElenchi(); salvaCache(); disegnaImpostazioni(); disegna();
+  avviso("Tag aggiunto");
+}
+async function aggiornaTag(t, campi){
+  const { error } = await sb.from("tag").update(campi).eq("id", t.id);
+  if(error){ avviso("Non salvato: " + error.message); return; }
+  Object.assign(t, campi); salvaCache(); disegna(); disegnaImpostazioni();
+}
+async function rinominaTag(t, nuovo){
+  if(trovaTag(nuovo)){ avviso("Esiste già un tag con questo nome"); disegnaImpostazioni(); return; }
+  const vecchio = t.nome;
+  const a = await sb.from("attivita").update({ tag:nuovo }).eq("tag", vecchio);
+  if(a.error){ avviso("Non rinominato: " + a.error.message); disegnaImpostazioni(); return; }
+  const b = await sb.from("tag").update({ nome:nuovo }).eq("id", t.id);
+  if(b.error){ avviso("Non rinominato: " + b.error.message); }
+  if(PREF.tag === vecchio){ PREF.tag = nuovo; salvaPref(); }
+  await caricaElenchi(); await carica(); disegnaImpostazioni();
+  avviso("Tag rinominato in " + nuovo);
+}
+function eliminaTag(t){
+  const n = usiTag(t.nome);
+  if(!n){
+    conferma("Eliminare il tag?", `«${t.nome}» non è usato da nessuna attività.`, async () => {
+      const { error } = await sb.from("tag").delete().eq("id", t.id);
+      if(error){ avviso("Non eliminato: " + error.message); return; }
+      await caricaElenchi(); salvaCache(); disegnaImpostazioni(); disegna(); avviso("Tag eliminato");
+    });
+    return;
+  }
+  const altri = nomiTag().filter(x => x !== t.nome);
+  if(!altri.length){ avviso("È l'unico tag: creane un altro prima di eliminarlo"); return; }
+  conferma("Eliminare il tag?",
+    `«${t.nome}» è usato da ${n} ${n===1?"attività":"attività"}. Scegli dove spostarle:`,
+    async () => {
+      const dest = $("#destTag").value;
+      const a = await sb.from("attivita").update({ tag:dest }).eq("tag", t.nome);
+      if(a.error){ avviso("Non spostate: " + a.error.message); return; }
+      const b = await sb.from("tag").delete().eq("id", t.id);
+      if(b.error){ avviso("Tag non eliminato: " + b.error.message); }
+      await caricaElenchi(); await carica(); disegnaImpostazioni();
+      avviso(`${n} attività spostate su ${dest}`);
+    },
+    `<label class="campo" style="margin-top:12px"><span>Sposta le attività su</span>
+       <select id="destTag">${altri.map(x => `<option>${esc(x)}</option>`).join("")}</select></label>`,
+    "Sposta ed elimina");
+}
+async function spostaTag(i, verso){
+  const j = i + verso; if(j < 0 || j >= S.tag.length) return;
+  const a = S.tag[i], b = S.tag[j];
+  const oa = a.ordine, ob = b.ordine;
+  await Promise.all([
+    sb.from("tag").update({ ordine: ob }).eq("id", a.id),
+    sb.from("tag").update({ ordine: oa }).eq("id", b.id)
+  ]);
+  await caricaElenchi(); salvaCache(); disegnaImpostazioni(); disegna();
+}
+
+async function nuovoValore(tipo){
+  const nome = (tipo === "priorita" ? $("#nuovaPrio") : $("#nuovaRic")).value.trim();
+  if(!nome) return;
+  const elenco = tipo === "priorita" ? S.priorita : S.ricorrenze;
+  if(elenco.some(v => v.nome.toLowerCase() === nome.toLowerCase())){ avviso("Esiste già"); return; }
+  const riga = { tipo, nome, ordine: elenco.length ? Math.max(...elenco.map(v => v.ordine)) + 10 : 0 };
+  if(tipo === "priorita") riga.colore = $("#nuovaPrioColore").value;
+  else { riga.giorni = +$("#nuovaRicGiorni").value || 0; riga.mesi = +$("#nuovaRicMesi").value || 0;
+    if(!riga.giorni && !riga.mesi){ avviso("Indica ogni quanti giorni o mesi si ripete"); return; } }
+  const { error } = await sb.from("valori").insert(riga);
+  if(error){ avviso("Non aggiunto: " + error.message); return; }
+  if(tipo === "priorita") $("#nuovaPrio").value = "";
+  else { $("#nuovaRic").value = ""; $("#nuovaRicGiorni").value = 0; $("#nuovaRicMesi").value = 0; }
+  await caricaElenchi(); salvaCache(); disegnaImpostazioni(); disegna();
+  avviso("Voce aggiunta");
+}
+async function aggiornaValore(v, campi){
+  const { error } = await sb.from("valori").update(campi).eq("id", v.id);
+  if(error){ avviso("Non salvato: " + error.message); return; }
+  Object.assign(v, campi); salvaCache(); disegna();
+}
+async function rinominaValore(v, nuovo, tipo){
+  const elenco = tipo === "priorita" ? S.priorita : S.ricorrenze;
+  if(elenco.some(x => x.nome.toLowerCase() === nuovo.toLowerCase())){ avviso("Esiste già"); disegnaImpostazioni(); return; }
+  const campo = tipo === "priorita" ? "priorita" : "ricorrenza";
+  const vecchio = v.nome;
+  const a = await sb.from("attivita").update({ [campo]:nuovo }).eq(campo, vecchio);
+  if(a.error){ avviso("Non rinominata: " + a.error.message); disegnaImpostazioni(); return; }
+  const b = await sb.from("valori").update({ nome:nuovo }).eq("id", v.id);
+  if(b.error) avviso("Non rinominata: " + b.error.message);
+  if(tipo === "priorita" && PREF.prio === vecchio){ PREF.prio = nuovo; salvaPref(); }
+  if(tipo === "ricorrenza" && PREF.ric === vecchio){ PREF.ric = nuovo; salvaPref(); }
+  await caricaElenchi(); await carica(); disegnaImpostazioni();
+  avviso("Rinominata in " + nuovo);
+}
+function eliminaValore(v, tipo){
+  const elenco = tipo === "priorita" ? S.priorita : S.ricorrenze;
+  const campo  = tipo === "priorita" ? "priorita" : "ricorrenza";
+  const n = tipo === "priorita" ? usiPrio(v.nome) : usiRic(v.nome);
+  const altri = elenco.filter(x => x.id !== v.id).map(x => x.nome);
+  if(!altri.length){ avviso("Deve restarne almeno una"); return; }
+  if(!n){
+    conferma("Eliminare la voce?", `«${v.nome}» non è usata da nessuna attività.`, async () => {
+      const { error } = await sb.from("valori").delete().eq("id", v.id);
+      if(error){ avviso("Non eliminata: " + error.message); return; }
+      await caricaElenchi(); salvaCache(); disegnaImpostazioni(); disegna(); avviso("Voce eliminata");
+    });
+    return;
+  }
+  conferma("Eliminare la voce?",
+    `«${v.nome}» è usata da ${n} ${n===1?"attività":"attività"}. Scegli con che cosa sostituirla:`,
+    async () => {
+      const dest = $("#destValore").value;
+      const a = await sb.from("attivita").update({ [campo]:dest }).eq(campo, v.nome);
+      if(a.error){ avviso("Non sostituita: " + a.error.message); return; }
+      const b = await sb.from("valori").delete().eq("id", v.id);
+      if(b.error) avviso("Voce non eliminata: " + b.error.message);
+      await caricaElenchi(); await carica(); disegnaImpostazioni();
+      avviso("Voce eliminata");
+    },
+    `<label class="campo" style="margin-top:12px"><span>Sostituisci con</span>
+       <select id="destValore">${altri.map(x => `<option>${esc(x)}</option>`).join("")}</select></label>`,
+    "Sostituisci ed elimina");
+}
+async function spostaValore(elenco, i, verso){
+  const j = i + verso; if(j < 0 || j >= elenco.length) return;
+  const a = elenco[i], b = elenco[j], oa = a.ordine, ob = b.ordine;
+  await Promise.all([
+    sb.from("valori").update({ ordine: ob }).eq("id", a.id),
+    sb.from("valori").update({ ordine: oa }).eq("id", b.id)
+  ]);
+  await caricaElenchi(); salvaCache(); disegnaImpostazioni(); disegna();
+}
+
+/* ------------------------------- tema -------------------------------- */
+function applicaTema(){
+  const t = PREF.tema === "auto"
+    ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : PREF.tema;
+  document.documentElement.dataset.tema = t;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.content = t === "dark" ? "#0f1319" : "#1f4f8f";
 }
 
 /* =====================================================================
@@ -552,6 +912,7 @@ const pushDisponibile = () => "serviceWorker" in navigator && "PushManager" in w
 
 async function aggiornaStatoPush(){
   const sw = $("#accPush"), nota = $("#accPushNota");
+  if(!sw) return;
   if(!pushDisponibile()){
     sw.checked = false; sw.disabled = true;
     nota.textContent = !window.isSecureContext
@@ -571,8 +932,7 @@ async function cambiaPush(e){
     const reg = await navigator.serviceWorker.ready;
     if(vuole){
       const permesso = await Notification.requestPermission();
-      if(permesso !== "granted"){ e.target.checked = false;
-        avviso("Permesso negato dal telefono"); return; }
+      if(permesso !== "granted"){ e.target.checked = false; avviso("Permesso negato dal telefono"); return; }
       const sott = await reg.pushManager.subscribe({
         userVisibleOnly:true, applicationServerKey:b64ToU8(CONFIG.VAPID_PUBLIC)
       });
@@ -593,7 +953,7 @@ async function cambiaPush(e){
 }
 
 /* =====================================================================
-   EXCEL (importazione ed esportazione)
+   EXCEL
    ===================================================================== */
 function caricaSheetJS(){
   if(window.XLSX) return Promise.resolve();
@@ -604,7 +964,6 @@ function caricaSheetJS(){
     document.head.appendChild(s);
   });
 }
-/* conversione seriale Excel -> data, con sola aritmetica intera */
 function giorniDaCivile(y,m,d){
   y -= m <= 2 ? 1 : 0;
   const era = Math.floor((y>=0?y:y-399)/400), yoe = y - era*400;
@@ -664,33 +1023,51 @@ async function importaExcel(file){
     const aoa = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header:1, raw:true, defval:"" });
     if(aoa.length < 2){ avviso("Il file non contiene righe"); return; }
     const testa = aoa[0].map(h => MAPPA[norm(h)] || null);
-    const nuove = [];
+    const predefinitaPrio = (PREF.prio || S.priorita[0].nome);
+    const predefinitaRic  = S.ricorrenze[0].nome;
+    const nuove = [], tagNuovi = new Set();
     for(let i=1;i<aoa.length;i++){
       const l = aoa[i]; if(!l || l.every(c => String(c==null?"":c).trim() === "")) continue;
-      const o = { tag:"GENERALE", descrizione:"", scadenza:null, fatto:false, in_data:null,
-                  priorita:"Media", ricorrenza:"Nessuna", importo:null, privata:false, autore:S.utente.id };
+      const o = { tag:(PREF.tag || nomiTag()[0] || "GENERALE"), descrizione:"", scadenza:null, fatto:false,
+                  in_data:null, priorita:predefinitaPrio, ricorrenza:predefinitaRic, importo:null,
+                  privata:false, autore:S.utente.id };
       l.forEach((cella,j) => {
         const k = testa[j]; if(!k) return;
         if(k === "scadenza" || k === "in_data") o[k] = leggiData(cella);
         else if(k === "fatto" || k === "privata") o[k] = vero(cella);
         else if(k === "importo"){ const n = parseFloat(String(cella).replace(",", ".")); o.importo = isNaN(n) ? null : n; }
         else if(k === "priorita"){ const s = norm(cella);
-          o.priorita = s.startsWith("a") ? "Alta" : s.startsWith("b") ? "Bassa" : "Media"; }
-        else if(k === "ricorrenza"){ const f = RICORRENZE.find(r => norm(r) === norm(cella)); o.ricorrenza = f || "Nessuna"; }
+          const p = S.priorita.find(x => norm(x.nome) === s)
+                 || S.priorita.find(x => norm(x.nome).startsWith(s.slice(0,1)));
+          o.priorita = p ? p.nome : predefinitaPrio; }
+        else if(k === "ricorrenza"){ const s = norm(cella);
+          const v = S.ricorrenze.find(x => norm(x.nome) === s);
+          o.ricorrenza = v ? v.nome : predefinitaRic; }
         else o[k] = String(cella==null?"":cella).trim();
       });
       if(!o.descrizione) continue;
       o.tag = (o.tag || "GENERALE").toUpperCase();
+      if(!trovaTag(o.tag)) tagNuovi.add(o.tag);
       if(o.fatto && !o.in_data) o.in_data = o.scadenza || oggi();
       nuove.push(o);
     }
     if(!nuove.length){ avviso("Nessuna attività valida trovata (serve la colonna «descrizione»)"); return; }
+
+    if(tagNuovi.size){                                  // i tag nuovi entrano nell'elenco condiviso
+      let ordine = S.tag.length ? Math.max(...S.tag.map(t => t.ordine)) + 10 : 0;
+      const righe = [...tagNuovi].map((n,i) => ({
+        nome:n, colore:TAVOLOZZA[(S.tag.length + i) % TAVOLOZZA.length], ordine: ordine + i*10 }));
+      const { error } = await sb.from("tag").insert(righe);
+      if(error) console.warn(error);
+      await caricaElenchi();
+    }
     for(let i=0;i<nuove.length;i+=200){
       const { error } = await sb.from("attivita").insert(nuove.slice(i, i+200));
       if(error) throw error;
     }
-    await carica();
-    avviso("Importate " + nuove.length + " attività");
+    await carica(); disegnaImpostazioni();
+    avviso("Importate " + nuove.length + " attività"
+      + (tagNuovi.size ? " e " + tagNuovi.size + " nuovi tag" : ""));
   }catch(e){ avviso("Importazione non riuscita: " + e.message); }
 }
 async function esportaExcel(){
@@ -719,24 +1096,15 @@ async function esportaExcel(){
 }
 
 /* =====================================================================
-   ACCOUNT
+   ACCOUNT E AGGIORNAMENTO
    ===================================================================== */
-function apriAccount(){
-  const m = S.membri[S.utente.id];
-  $("#accInfo").textContent = "Collegato come " + S.utente.email;
-  $("#accVersione").textContent = "Versione dell'app: " + VERSIONE
-    + (navigator.serviceWorker && navigator.serviceWorker.controller ? " (copia locale attiva)" : "");
-  $("#accNome").value = m ? m.nome : "";
-  const box = $("#elencoMembri");
-  box.innerHTML = Object.values(S.membri).map(x => {
-    const c = colTag(x.nome);
-    return `<span class="membro"><span class="pal" style="background:${scuro()?c.bg:c.fg}">${esc(iniziali(x.nome))}</span>${esc(x.nome)}</span>`;
-  }).join("") || `<span class="note">Nessun altro membro registrato.</span>`;
-  aggiornaStatoPush();
-  apri("mAccount");
+async function salvaNome(){
+  const nome = $("#accNome").value.trim();
+  if(!nome) return;
+  const { error } = await sb.from("membri").update({ nome }).eq("id", S.utente.id);
+  if(error){ avviso("Non salvato: " + error.message); return; }
+  await caricaMembri(); disegna(); disegnaImpostazioni(); avviso("Nome aggiornato");
 }
-/* Svuota la copia locale e ricarica: serve dopo un aggiornamento pubblicato su GitHub,
-   quando il browser continuerebbe a mostrare la versione precedente. */
 async function forzaAggiornamento(){
   const b = $("#btnAggiorna"); b.disabled = true; b.textContent = "Aggiornamento…";
   try{
@@ -751,13 +1119,6 @@ async function forzaAggiornamento(){
   }catch(e){ console.warn(e); }
   location.replace(location.pathname + "?v=" + Date.now());
 }
-async function salvaNome(){
-  const nome = $("#accNome").value.trim();
-  if(!nome) return;
-  const { error } = await sb.from("membri").update({ nome }).eq("id", S.utente.id);
-  if(error){ avviso("Non salvato: " + error.message); return; }
-  await caricaMembri(); disegna(); avviso("Nome aggiornato");
-}
 
 /* =====================================================================
    NAVIGAZIONE ED EVENTI
@@ -768,10 +1129,12 @@ function vista(v){
   $("#vElenco").hidden = v !== "elenco";
   $("#vCal").hidden    = v !== "calendario";
   $("#vReport").hidden = v !== "report";
-  $("#titoloVista").textContent = { elenco:"Elenco", calendario:"Calendario", report:"Report" }[v];
-  $("#btnNuova").hidden = v === "report";
+  $("#vSet").hidden    = v !== "impostazioni";
+  $("#btnNuova").hidden = v === "report" || v === "impostazioni";
   if(v === "calendario") calendario();
   if(v === "report"){ tagReport(); anteprima(); }
+  if(v === "impostazioni") disegnaImpostazioni();
+  window.scrollTo({ top:0, behavior:"smooth" });
 }
 function collegaEventi(){
   $("#formLogin").addEventListener("submit", accedi);
@@ -779,19 +1142,22 @@ function collegaEventi(){
   $$(".velo").forEach(v => v.onclick = e => { if(e.target === v) v.hidden = true; });
   $$("#tabbar button").forEach(b => b.onclick = () => vista(b.dataset.v));
 
-  $("#q").oninput      = e => { S.filtri.q = e.target.value; elenco(); };
+  $("#q").oninput       = e => { S.filtri.q = e.target.value; elenco(); };
   $("#fStato").onchange = e => { S.filtri.stato = e.target.value; disegna(); };
   $("#fChi").onchange   = e => { S.filtri.chi = e.target.value; disegna(); };
   $("#fOrd").onchange   = e => { S.filtri.ord = e.target.value; elenco(); };
   $$(".kpi").forEach(k => k.onclick = () => {
-    const m = { late:["todo","late"], today:["todo","today"], w:["todo","7"], todo:["todo",""], pay:["todo","pay"] }[k.dataset.k];
-    S.filtri.stato = m[0]; S.filtri.quando = m[1]; $("#fStato").value = m[0];
+    const m = { late:["todo","late"], today:["todo","today"], w:["todo","w"],
+                todo:["todo",""], pay:["todo","pay"] }[k.dataset.k];
+    S.filtri.stato = m[0];
+    S.filtri.quando = (S.filtri.quando === m[1] && m[1]) ? "" : m[1];
+    $("#fStato").value = m[0];
     vista("elenco"); disegna();
   });
 
-  $("#btnNuova").onclick  = () => modale(null);
+  $("#btnNuova").onclick    = () => modale(null);
   $("#btnSalvaAtt").onclick = salvaDaModale;
-  $("#btnElimina").onclick = () => {
+  $("#btnElimina").onclick  = () => {
     const r = S.righe.find(x => x.id === S.modifica); if(!r) return;
     conferma("Eliminare l'attività?", `«${r.descrizione}» verrà rimossa per tutti.`, async () => {
       if(await eliminaAttivita(r.id)){ chiudi("mAtt"); avviso("Attività eliminata"); }
@@ -805,24 +1171,44 @@ function collegaEventi(){
   ["rTitolo","rStato","rQuando","rOrd","rGruppo","rBox","rData","rPrio","rImp","rRic","rChi","rPriv"]
     .forEach(id => { const e = $("#"+id); if(e) e.oninput = e.onchange = anteprima; });
   $("#rTutti").onclick   = () => { S.reportEsclusi.clear(); tagReport(); anteprima(); };
-  $("#rNessuno").onclick = () => { S.reportEsclusi = new Set(tuttiTag()); tagReport(); anteprima(); };
+  $("#rNessuno").onclick = () => { S.reportEsclusi = new Set(nomiTag()); tagReport(); anteprima(); };
   $("#btnStampa").onclick = stampaReport;
+  window.addEventListener("beforeprint", () => {
+    if(!$("#stampa").innerHTML.trim()) $("#stampa").innerHTML = documento();
+  });
 
-  $("#btnAccount").onclick = apriAccount;
-  $("#btnNome").onclick    = salvaNome;
+  $("#btnAccount").onclick  = () => vista("impostazioni");
+  $("#btnNome").onclick     = salvaNome;
+  $("#accPush").onchange    = cambiaPush;
+  $("#btnImporta").onclick  = () => $("#fileExcel").click();
+  $("#fileExcel").onchange  = e => { const f = e.target.files[0]; if(f) importaExcel(f); e.target.value = ""; };
+  $("#btnEsporta").onclick  = esportaExcel;
   $("#btnAggiorna").onclick = forzaAggiornamento;
-  $("#accPush").onchange   = cambiaPush;
-  $("#btnImporta").onclick = () => $("#fileExcel").click();
-  $("#fileExcel").onchange = e => { const f = e.target.files[0]; if(f) importaExcel(f); e.target.value = ""; };
-  $("#btnEsporta").onclick = esportaExcel;
-  $("#btnEsci").onclick    = () => conferma("Uscire dall'app?", "Dovrai inserire di nuovo email e password.",
-                                            async () => { await sb.auth.signOut(); location.reload(); });
+  $("#btnEsci").onclick     = () => conferma("Uscire dall'app?", "Dovrai inserire di nuovo email e password.",
+                                async () => { await sb.auth.signOut(); location.reload(); }, "", "Esci");
 
+  $("#btnNuovoTag").onclick  = nuovoTag;
+  $("#nuovoTag").onkeydown   = e => { if(e.key === "Enter") nuovoTag(); };
+  $("#btnNuovaPrio").onclick = () => nuovoValore("priorita");
+  $("#btnNuovaRic").onclick  = () => nuovoValore("ricorrenza");
+
+  $("#defTag").onchange  = e => { PREF.tag = e.target.value === "(nessuno)" ? "" : e.target.value; salvaPref(); };
+  $("#defPrio").onchange = e => { PREF.prio = e.target.value; salvaPref(); };
+  $("#defRic").onchange  = e => { PREF.ric = e.target.value; salvaPref(); };
+  $("#defGiorni").onchange = e => { PREF.giorni = Math.min(90, Math.max(1, +e.target.value || 7));
+    e.target.value = PREF.giorni; salvaPref(); disegna(); };
+  $("#defTema").onchange = e => { PREF.tema = e.target.value; salvaPref(); applicaTema(); disegna(); };
+  $("#defGruppi").onchange = e => { PREF.gruppi = e.target.checked; salvaPref(); elenco(); };
+  $$(".kpiOn").forEach(c => c.onchange = () => {
+    PREF.kpi = $$(".kpiOn").filter(x => x.checked).map(x => x.value); salvaPref(); testata(); });
+
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if(PREF.tema === "auto"){ applicaTema(); disegna(); } });
   document.addEventListener("keydown", e => {
     if(e.key === "Escape") $$(".velo").forEach(v => v.hidden = true);
   });
   window.addEventListener("online",  () => { stato(""); carica(); });
-  window.addEventListener("offline", () => stato("offline", true));
+  window.addEventListener("offline", () => stato("non connesso", true));
 }
 
 document.addEventListener("DOMContentLoaded", avvia);
