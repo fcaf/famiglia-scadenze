@@ -1,8 +1,8 @@
 /* Service worker: funzionamento offline del guscio dell'app e notifiche push. */
 const CACHE = "scadenze-v2";   // cambiando nome si svuota la cache vecchia
 const GUSCIO = [
-  "./", "./index.html", "./css/stile.css", "./js/app.js", "./js/config.js",
-  "./js/supabase.min.js", "./manifest.webmanifest", "./icone/icona-192.png", "./icone/icona-512.png"
+  "./", "./index.html", "./stile.css", "./app.js", "./config.js",
+  "./supabase.min.js", "./manifest.webmanifest", "./icona-192.png", "./icona-512.png"
 ];
 
 self.addEventListener("install", e => {
@@ -38,8 +38,8 @@ self.addEventListener("push", e => {
   try{ if(e.data) d = Object.assign(d, e.data.json()); }catch(err){ if(e.data) d.corpo = e.data.text(); }
   e.waitUntil(self.registration.showNotification(d.titolo, {
     body: d.corpo,
-    icon: "icone/icona-192.png",
-    badge: "icone/icona-192.png",
+    icon: "icona-192.png",
+    badge: "icona-192.png",
     tag: "promemoria-scadenze",
     renotify: true,
     data: { url: d.url || "./" }

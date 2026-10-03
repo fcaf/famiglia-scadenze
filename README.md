@@ -66,7 +66,7 @@ promemoria giornalieri. Tutto con servizi gratuiti, senza carta di credito.
 
 ## 5. Compila la configurazione
 
-Apri `js/config.js` con un editor di testo e sostituisci i tre valori:
+Apri `config.js` con un editor di testo (Blocco note va benissimo) e sostituisci i tre valori:
 
 ```js
 SUPABASE_URL:  "https://abcdefgh.supabase.co",   // punto 1
@@ -78,8 +78,13 @@ VAPID_PUBLIC:  "la-chiave-pubblica-generata"     // punto 4 (lascia "" se niente
 
 1. Su GitHub crea un nuovo repository, ad esempio `famiglia-scadenze`, **pubblico**
    (con il piano gratuito GitHub Pages funziona solo sui repository pubblici).
-2. Carica tutti i file di questa cartella: puoi trascinarli nella pagina del repository
-   (*Add file → Upload files*) oppure usare `git push` se preferisci.
+2. Carica tutti i file di questa cartella: *Add file → Upload files*, poi seleziona tutti i
+   file e trascinali nella pagina. Stanno tutti sullo stesso livello proprio per evitare
+   problemi: non ci sono sottocartelle da ricostruire.
+   L'unica eccezione è il file del promemoria giornaliero, che **deve** stare in
+   `.github/workflows/`: si crea con *Add file → Create new file* scrivendo come nome
+   `.github/workflows/promemoria.yml` (le barre creano le cartelle da sole) e incollando
+   dentro il contenuto del file `promemoria.yml`.
 3. **Settings → Pages → Build and deployment → Deploy from a branch**, ramo `main`,
    cartella `/ (root)`, **Save**.
 4. Dopo un paio di minuti l'app è online all'indirizzo
@@ -166,12 +171,12 @@ condivise; puoi renderne private singolarmente quelle che vuoi.
 
 | Sintomo | Causa più probabile |
 |---|---|
-| Pagina bianca o «404 File not found» | i file sono finiti dentro una sottocartella del repository: `index.html` deve stare nella **radice**, non in `famiglia-scadenze/index.html`. Controlla la pagina iniziale del repository: devi vedere subito `index.html`, `css`, `js`, `icone` |
+| Pagina bianca o «404 File not found» | i file sono finiti dentro una sottocartella: nella pagina iniziale del repository devi vedere subito `index.html`, `app.js`, `stile.css` e gli altri, senza doppi clic |
 | La pagina non cambia dopo una modifica | la pubblicazione richiede 1-2 minuti (vedi il pallino giallo/verde in alto a destra nel repository); poi ricarica con Ctrl+F5, o chiudi e riapri l'app sul telefono |
-| «L'app non è ancora configurata» | `js/config.js` non compilato, o caricato su GitHub senza le modifiche |
+| «L'app non è ancora configurata» | `config.js` non compilato, o caricato su GitHub senza le modifiche |
 | «Email o password non corretti» | utente non creato, oppure creato senza *Auto Confirm User* |
 | L'elenco resta vuoto | lo `schema.sql` non è stato eseguito, oppure è stato eseguito a metà |
-| Riquadro «Un file necessario non è stato caricato» | quel file manca nel repository o è in una cartella sbagliata: ricarica la cartella `js` per intero |
+| Riquadro «Un file necessario non è stato caricato» | quel file manca nel repository o è finito in una sottocartella: deve stare accanto a `index.html` |
 | Le notifiche non arrivano | chiave VAPID diversa fra `config.js` e i Secrets, interruttore non attivato su quel telefono, oppure su iPhone l'app non è stata aggiunta alla schermata Home |
 | Il workflow fallisce | controlla i cinque segreti nella scheda Actions: il messaggio di errore dice quale manca |
 | Vuoi vedere che cosa verrebbe inviato | dal tuo PC, nella cartella del progetto: `npm install` e poi `DRY_RUN=1 SUPABASE_URL=... SUPABASE_SERVICE_KEY=... VAPID_PUBLIC=... VAPID_PRIVATE=... node scripts/promemoria.mjs` — stampa i messaggi senza spedirli |
@@ -179,25 +184,30 @@ condivise; puoi renderne private singolarmente quelle che vuoi.
 
 ## Nota sulle librerie
 
-Dentro `js/` ci sono due librerie open source incluse nel progetto: `supabase.min.js`
+Nel progetto ci sono due librerie open source incluse: `supabase.min.js`
 (client Supabase, licenza MIT) e `xlsx.full.min.js` (SheetJS, licenza Apache 2.0). Sono incluse
 di proposito invece di essere richiamate da un servizio esterno: così l'app funziona anche se
 una rete, un antivirus o un blocco pubblicità impedisce di raggiungere i CDN.
 
 ## I file
 
+Tutti i file stanno sullo stesso livello, nella radice del repository: l'unico che va in una
+cartella è il workflow dei promemoria.
+
 ```
-index.html                       la pagina dell'app (deve stare nella radice del repository)
-.nojekyll                        dice a GitHub di pubblicare i file così come sono
-css/stile.css                    aspetto, compresa l'impaginazione del report
-js/config.js                     i tuoi tre valori (unico file da compilare)
-js/app.js                        tutta la logica dell'app
-js/supabase.min.js               libreria Supabase (inclusa: l'app non dipende da servizi esterni)
-js/xlsx.full.min.js              libreria per leggere e scrivere i file Excel
+index.html                       la pagina dell'app
+config.js                        i tuoi tre valori (unico file da compilare)
+app.js                           tutta la logica dell'app
+stile.css                        aspetto, compresa l'impaginazione del report
+supabase.min.js                  libreria Supabase (inclusa: nessuna dipendenza esterna)
+591.supabase.js                  piccolo file di servizio della libreria Supabase
+xlsx.full.min.js                 libreria per leggere e scrivere i file Excel
 sw.js, manifest.webmanifest      installazione sul telefono e funzionamento offline
-icone/                           icone dell'app
-supabase/schema.sql              tabelle e regole di accesso del database
-strumenti/chiavi-vapid.html      generatore delle chiavi per le notifiche
-scripts/promemoria.mjs           invio dei promemoria giornalieri
-.github/workflows/promemoria.yml quando farlo partire
+icona-192.png, icona-512.png,
+icona-maskable.png               icone dell'app
+schema.sql                       tabelle e regole di accesso del database
+chiavi-vapid.html                generatore delle chiavi per le notifiche
+promemoria.mjs                   invio dei promemoria giornalieri
+package.json                     elenco delle librerie usate dal promemoria
+.github/workflows/promemoria.yml quando farlo partire (unico file in una cartella)
 ```

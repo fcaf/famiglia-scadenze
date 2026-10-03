@@ -30,4 +30,4 @@ jobs:
           VAPID_PUBLIC:         ${{ secrets.VAPID_PUBLIC }}
           VAPID_PRIVATE:        ${{ secrets.VAPID_PRIVATE }}
           VAPID_SUBJECT:        ${{ secrets.VAPID_SUBJECT }}
-        run: node scripts/promemoria.mjs
+        run: node promemoria.mjs

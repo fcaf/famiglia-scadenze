@@ -110,15 +110,15 @@ async function avviaDavvero(){
   if(!configurato()){
     $("#login").hidden = false;
     $("#lgErr").hidden = false;
-    $("#lgErr").innerHTML = "L'app non è ancora configurata: apri <b>js/config.js</b> e inserisci "
+    $("#lgErr").innerHTML = "L'app non è ancora configurata: apri <b>config.js</b> e inserisci "
       + "l'indirizzo del progetto Supabase e la chiave anon (vedi il README).";
     $("#formLogin").hidden = true;
     return;
   }
   $("#lgNota").textContent = CONFIG.NOTA_ACCESSO || "";
   if(!window.supabase || typeof window.supabase.createClient !== "function")
-    throw new Error("La libreria js/supabase.min.js non è stata caricata: controlla che il file "
-      + "sia stato caricato nel repository dentro la cartella js.");
+    throw new Error("La libreria supabase.min.js non è stata caricata: controlla che il file "
+      + "sia presente nel repository accanto a index.html.");
   sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON, {
     auth:{ persistSession:true, autoRefreshToken:true }
   });
@@ -598,8 +598,8 @@ function caricaSheetJS(){
   if(window.XLSX) return Promise.resolve();
   return new Promise((ok,ko) => {
     const s = document.createElement("script");
-    s.src = "js/xlsx.full.min.js";
-    s.onload = ok; s.onerror = () => ko(new Error("libreria js/xlsx.full.min.js non trovata"));
+    s.src = "xlsx.full.min.js";
+    s.onload = ok; s.onerror = () => ko(new Error("libreria xlsx.full.min.js non trovata"));
     document.head.appendChild(s);
   });
 }

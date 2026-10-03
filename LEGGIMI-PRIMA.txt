@@ -1,28 +1,52 @@
-AGGIORNAMENTO — Attività e Scadenze di famiglia
-================================================
+STRUTTURA PIATTA — Attività e Scadenze di famiglia
+==================================================
 
-Questa cartella contiene SOLO i file cambiati. Volutamente NON contiene js/config.js,
-così i valori che hai già inserito restano quelli che hai configurato.
+Perché questa versione
+----------------------
+Caricando i file su GitHub con il trascinamento, le cartelle si perdono se non si
+trascinano le cartelle stesse: i file finiscono tutti nella radice e l'app non trova
+più niente (pagina bianca). Questa versione è fatta apposta per stare tutta su un
+livello solo: nessuna cartella da ricostruire.
 
-Come applicarlo su GitHub (dal browser):
+Che cosa caricare
+-----------------
+1. Apri il tuo repository su GitHub → "Add file" → "Upload files".
+2. Apri questa cartella, seleziona TUTTI i file (Ctrl+A) e trascinali nella pagina.
+   Va benissimo che sovrascrivano quelli già presenti.
+3. Scrivi un messaggio (es. "struttura piatta") e premi "Commit changes".
 
-1. Apri il tuo repository → pulsante "Add file" → "Upload files".
-2. Trascina nella pagina questi elementi presi da dentro questa cartella:
-      index.html
-      sw.js
-      .nojekyll
-      README.md
-      la cartella  js   (contiene app.js e le due librerie)
-   NON trascinare l'intera cartella "aggiornamento": trascina il suo CONTENUTO,
-   altrimenti i file finiscono dentro una sottocartella e il sito non parte.
-3. Scrivi un messaggio qualsiasi (es. "aggiornamento") e premi "Commit changes".
-4. GitHub sovrascrive solo i file che hai caricato: js/config.js resta intatto.
-5. Attendi 1-2 minuti (pallino giallo → verde in alto nel repository), poi apri il sito
-   e ricarica con Ctrl+F5 (sul telefono: chiudi e riapri l'app).
+ATTENZIONE a config.js
+----------------------
+In questa cartella NON c'è config.js, perché il tuo contiene già i valori giusti e
+non va sovrascritto. Se però lo avessi perso, ricrealo con "Add file → Create new
+file", nome  config.js , e questo contenuto (sostituendo i tre valori):
 
-Se il file .nojekyll non si vede quando lo trascini, è perché inizia con un punto e il
-sistema lo considera nascosto: su Windows attiva "Elementi nascosti" nella scheda
-Visualizza di Esplora file, oppure crealo direttamente su GitHub con
-"Add file → Create new file", nome  .nojekyll  e contenuto vuoto.
+  window.CONFIG = {
+    SUPABASE_URL:  "https://TUO-PROGETTO.supabase.co",
+    SUPABASE_ANON: "LA-TUA-CHIAVE-ANON",
+    VAPID_PUBLIC:  "",
+    NOTA_ACCESSO:  "Gli account vengono creati dall'amministratore di famiglia."
+  };
 
-Da questa versione l'app non resta mai bianca: se qualcosa non va, lo scrive sullo schermo.
+Il promemoria giornaliero (si fa una volta sola)
+------------------------------------------------
+Il file promemoria.yml è l'unico che DEVE stare in una cartella precisa. Su GitHub:
+  "Add file" → "Create new file"
+  nel campo del nome scrivi esattamente:   .github/workflows/promemoria.yml
+  (scrivendo le barre, GitHub crea le cartelle da solo)
+  poi apri promemoria.yml di questa cartella, copia tutto il contenuto, incollalo
+  nella pagina e premi "Commit changes".
+Il promemoria.yml che hai adesso nella radice non serve a niente: puoi cancellarlo.
+
+File da cancellare (facoltativo, solo per ordine)
+-------------------------------------------------
+Se nella radice ci sono rimasti doppioni o file inutili (per esempio una cartella
+"download" o un vecchio LEGGIMI), puoi cancellarli: aprili e usa l'icona del cestino.
+Non cancellare mai: index.html, config.js, app.js, stile.css, supabase.min.js,
+591.supabase.js, xlsx.full.min.js, sw.js, manifest.webmanifest, le tre icone.
+
+Dopo il caricamento
+-------------------
+Aspetta che il pallino in alto nel repository diventi verde (1-2 minuti), poi apri il
+sito e ricarica con Ctrl+F5. Se qualcosa non va, l'app non resta bianca: scrive sullo
+schermo quale file manca.

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Promemoria giornalieri per l'app Attività e Scadenze di famiglia",
   "scripts": {
-    "promemoria": "node scripts/promemoria.mjs"
+    "promemoria": "node promemoria.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

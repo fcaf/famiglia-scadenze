@@ -8,9 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="Scadenze">
 <title>Attività e Scadenze</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icone/icona-192.png">
-<link rel="apple-touch-icon" href="icone/icona-192.png">
-<link rel="stylesheet" href="css/stile.css">
+<link rel="icon" href="icona-192.png">
+<link rel="apple-touch-icon" href="icona-192.png">
+<link rel="stylesheet" href="stile.css">
 <script>
 /* Rete di sicurezza: se qualcosa non si carica o va in errore, invece di una pagina
    bianca compare un riquadro che dice che cosa è successo. */
@@ -45,7 +45,7 @@
     }
     if(e.message) mostra("Si è verificato un errore durante l'avvio.",
       e.message + (e.filename ? "\n(" + e.filename.split("/").pop() + ", riga " + e.lineno + ")" : ""),
-      "il contenuto di js/config.js: i tre valori vanno fra virgolette e separati da virgole.");
+      "il contenuto di config.js: i tre valori vanno fra virgolette e separati da virgole.");
   }, true);
 })();
 </script>
@@ -269,8 +269,8 @@
 <div id="avvisi"></div>
 <div id="stampa"></div>
 
-<script src="js/supabase.min.js"></script>
-<script src="js/config.js"></script>
-<script src="js/app.js"></script>
+<script src="supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
