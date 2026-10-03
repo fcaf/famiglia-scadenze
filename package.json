@@ -1,0 +1,14 @@
+{
+  "name": "famiglia-scadenze",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Promemoria giornalieri per l'app Attività e Scadenze di famiglia",
+  "scripts": {
+    "promemoria": "node scripts/promemoria.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "web-push": "^3.6.7"
+  }
+}

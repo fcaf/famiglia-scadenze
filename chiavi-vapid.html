@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genera le chiavi per le notifiche</title>
+<style>
+ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;max-width:720px;margin:0 auto;
+      padding:28px 20px;background:#f4f5f7;color:#16191d;line-height:1.5}
+ h1{font-size:21px;margin:0 0 6px} p{color:#5b6472}
+ .box{background:#fff;border:1px solid #e2e5ea;border-radius:14px;padding:18px;margin-top:16px;
+      box-shadow:0 1px 2px rgba(16,24,40,.06)}
+ label{display:block;font-size:12px;font-weight:700;color:#5b6472;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+ textarea{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;border:1px solid #cdd3db;
+      border-radius:10px;padding:10px;background:#fafbfc;resize:vertical}
+ button{background:#1f4f8f;color:#fff;border:0;border-radius:11px;padding:11px 18px;font-size:15px;font-weight:600;cursor:pointer}
+ .sec{background:#fdf1dc;border-left:4px solid #9a6414;padding:11px 13px;border-radius:0 10px 10px 0;font-size:13.5px;margin-top:16px}
+ code{background:#eceff3;padding:1px 5px;border-radius:5px;font-size:12.5px}
+</style>
+</head>
+<body>
+<h1>Chiavi per le notifiche push (VAPID)</h1>
+<p>Le chiavi vengono generate qui nel tuo browser e non vengono inviate da nessuna parte.
+   Servono una sola volta: premi il pulsante e copia i due valori dove indicato.</p>
+
+<div class="box">
+  <button id="gen">Genera la coppia di chiavi</button>
+  <div id="out" hidden>
+    <p style="margin-top:18px"><label>Chiave pubblica → in <code>js/config.js</code>, campo <code>VAPID_PUBLIC</code></label>
+      <textarea id="pub" rows="3" readonly></textarea></p>
+    <p><label>Chiave privata → segreto GitHub <code>VAPID_PRIVATE</code></label>
+      <textarea id="priv" rows="2" readonly></textarea></p>
+    <div class="sec"><b>Attenzione:</b> la chiave privata va incollata solo nei «Secrets» del repository
+      GitHub. Non metterla nei file dell'app e non inviarla via chat o email.</div>
+  </div>
+</div>
+
+<script>
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf)))
+  .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+
+document.getElementById("gen").onclick = async () => {
+  const coppia = await crypto.subtle.generateKey({ name:"ECDSA", namedCurve:"P-256" }, true, ["sign","verify"]);
+  const pub  = await crypto.subtle.exportKey("raw", coppia.publicKey);   // 65 byte non compressi
+  const jwk  = await crypto.subtle.exportKey("jwk", coppia.privateKey);  // d = chiave privata
+  document.getElementById("pub").value  = b64url(pub);
+  document.getElementById("priv").value = jwk.d;
+  document.getElementById("out").hidden = false;
+};
+</script>
+</body>
+</html>

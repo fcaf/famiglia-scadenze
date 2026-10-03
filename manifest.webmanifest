@@ -1,0 +1,17 @@
+{
+  "name": "Attività e Scadenze di famiglia",
+  "short_name": "Scadenze",
+  "description": "Elenco condiviso di attività e scadenze familiari, con report stampabili e promemoria.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f5f7",
+  "theme_color": "#1f4f8f",
+  "lang": "it",
+  "icons": [
+    { "src": "icone/icona-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone/icona-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icone/icona-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
