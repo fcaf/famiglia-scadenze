@@ -1,0 +1,19 @@
+Tre soli file, da caricare nella radice del repository come hai già fatto
+(Add file -> Upload files -> trascina -> Commit changes):
+
+    index.html
+    app.js
+    sw.js
+
+A che servono
+-------------
+Evitano che il browser continui a mostrare la versione vecchia dopo un aggiornamento:
+d'ora in poi la pagina e i file dell'app vengono sempre riletti dalla rete.
+
+In più, nel pannello Account (l'iniziale in alto a destra) trovi:
+ - la data della versione che stai usando, utile quando qualcosa non torna;
+ - il pulsante "Scarica l'ultima versione", che svuota la copia locale e ricarica.
+   Dopo ogni aggiornamento futuro basterà premere quello, anche sul telefono.
+
+Nota: questo non sostituisce il ricaricamento forzato che devi fare ADESSO
+(Ctrl+Shift+R su PC) per vedere finalmente l'app partire.

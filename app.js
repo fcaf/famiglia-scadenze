@@ -7,6 +7,7 @@
 /* ---------------------------------------------------------------- base */
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
+const VERSIONE = "3 ottobre 2026";
 const RICORRENZE = ["Nessuna","Giornaliera","Settimanale","Quindicinale","Mensile",
                     "Bimestrale","Trimestrale","Semestrale","Annuale"];
 const MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio",
@@ -723,6 +724,8 @@ async function esportaExcel(){
 function apriAccount(){
   const m = S.membri[S.utente.id];
   $("#accInfo").textContent = "Collegato come " + S.utente.email;
+  $("#accVersione").textContent = "Versione dell'app: " + VERSIONE
+    + (navigator.serviceWorker && navigator.serviceWorker.controller ? " (copia locale attiva)" : "");
   $("#accNome").value = m ? m.nome : "";
   const box = $("#elencoMembri");
   box.innerHTML = Object.values(S.membri).map(x => {
@@ -731,6 +734,22 @@ function apriAccount(){
   }).join("") || `<span class="note">Nessun altro membro registrato.</span>`;
   aggiornaStatoPush();
   apri("mAccount");
+}
+/* Svuota la copia locale e ricarica: serve dopo un aggiornamento pubblicato su GitHub,
+   quando il browser continuerebbe a mostrare la versione precedente. */
+async function forzaAggiornamento(){
+  const b = $("#btnAggiorna"); b.disabled = true; b.textContent = "Aggiornamento…";
+  try{
+    if("serviceWorker" in navigator){
+      const reg = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(reg.map(r => r.unregister()));
+    }
+    if(window.caches){
+      const nomi = await caches.keys();
+      await Promise.all(nomi.map(n => caches.delete(n)));
+    }
+  }catch(e){ console.warn(e); }
+  location.replace(location.pathname + "?v=" + Date.now());
 }
 async function salvaNome(){
   const nome = $("#accNome").value.trim();
@@ -791,6 +810,7 @@ function collegaEventi(){
 
   $("#btnAccount").onclick = apriAccount;
   $("#btnNome").onclick    = salvaNome;
+  $("#btnAggiorna").onclick = forzaAggiornamento;
   $("#accPush").onchange   = cambiaPush;
   $("#btnImporta").onclick = () => $("#fileExcel").click();
   $("#fileExcel").onchange = e => { const f = e.target.files[0]; if(f) importaExcel(f); e.target.value = ""; };

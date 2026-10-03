@@ -1,5 +1,5 @@
 /* Service worker: funzionamento offline del guscio dell'app e notifiche push. */
-const CACHE = "scadenze-v2";   // cambiando nome si svuota la cache vecchia
+const CACHE = "scadenze-v3";   // cambiando nome si svuota la cache vecchia
 const GUSCIO = [
   "./", "./index.html", "./stile.css", "./app.js", "./config.js",
   "./supabase.min.js", "./manifest.webmanifest", "./icona-192.png", "./icona-512.png"
@@ -21,8 +21,15 @@ self.addEventListener("fetch", e => {
   if(url.hostname.endsWith("supabase.co")) return;             // i dati passano sempre dalla rete
 
   if(url.origin === location.origin){                           // guscio: prima la rete, poi la copia locale
+    // Per la pagina e i file dell'app si salta anche la cache del browser: altrimenti dopo un
+    // aggiornamento su GitHub si continuerebbe a vedere la versione vecchia per diversi minuti.
+    const sempreFresco = e.request.mode === "navigate"
+      || /\.(html|js|css|webmanifest)$/i.test(url.pathname) || url.pathname.endsWith("/");
+    const daRete = sempreFresco
+      ? fetch(new Request(url.href, { cache: "no-store", credentials: "same-origin" }))
+      : fetch(e.request);
     e.respondWith(
-      fetch(e.request)
+      daRete
         .then(r => { const c = r.clone(); caches.open(CACHE).then(k => k.put(e.request, c)); return r; })
         .catch(() => caches.match(e.request).then(r => r || caches.match("./index.html")))
     );
