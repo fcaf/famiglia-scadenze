@@ -1,1 +1,33 @@
+name: Promemoria scadenze
 
+# Ogni mattina alle 06:00 UTC = 08:00 in Italia con l'ora legale, 07:00 con l'ora solare.
+# Si può anche lanciare a mano dalla scheda "Actions" del repository.
+# Nota: questo lavoro interroga ogni giorno il database e quindi tiene
+# sveglio anche il progetto Supabase, che altrimenti si sospende dopo una
+# settimana di inattività.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  invia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Installa le dipendenze
+        run: npm install --omit=dev --no-audit --no-fund
+
+      - name: Invia i promemoria
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          VAPID_PUBLIC:         ${{ secrets.VAPID_PUBLIC }}
+          VAPID_PRIVATE:        ${{ secrets.VAPID_PRIVATE }}
+          VAPID_SUBJECT:        ${{ secrets.VAPID_SUBJECT }}
+        run: node promemoria.mjs
