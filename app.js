@@ -5,7 +5,7 @@
 "use strict";
 
 const APP = "FARO";
-const VERSIONE = "5 ottobre 2026";
+const VERSIONE = "5 ottobre 2026 (2)";
 const MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio",
               "agosto","settembre","ottobre","novembre","dicembre"];
 const GG = ["lun","mar","mer","gio","ven","sab","dom"];
@@ -62,6 +62,8 @@ function spiegaErrore(err){
       + "aggiornamento-3.sql (SQL Editor → New query → incolla → Run).";
   return m;
 }
+/* Collegamento a Google Maps: sul telefono apre l'app Mappe, sul computer il sito. */
+const linkMappa = luogo => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(luogo);
 const eur = v => (v==null||v==="") ? "" :
   new Intl.NumberFormat("it-IT",{ style:"currency", currency:"EUR" }).format(v);
 
@@ -433,7 +435,7 @@ function schedaAttivita(r){
         ${r.tag?`<span class="tagb" style="background:${c.tenue};color:${c.forte}">${esc(r.tag)}</span>`:""}
         ${rigaScadenza(r)}
         ${orario(r)?`<span class="pill">🕘 ${esc(orario(r))}</span>`:""}
-        ${r.luogo?`<span class="pill">📍 ${esc(r.luogo)}</span>`:""}
+        ${r.luogo?`<a class="pill mappa" href="${linkMappa(r.luogo)}" target="_blank" rel="noopener" title="Apri in Google Maps">📍 ${esc(r.luogo)}</a>`:""}
         <span class="prio" style="color:${colPrio(r.priorita)}"><i></i>${esc(r.priorita||"")}</span>
         ${r.importo!=null?`<span class="soldi">${eur(r.importo)}</span>`:""}
         ${r.ricorrenza&&passoRic(r.ricorrenza)&&(passoRic(r.ricorrenza).giorni||passoRic(r.ricorrenza).mesi)
@@ -443,7 +445,7 @@ function schedaAttivita(r){
       </div>
     </div>`;
   d.querySelector(".spunta").onclick = e => { e.stopPropagation(); spunta(r.id); };
-  d.querySelector(".corpocard").onclick = () => modale(r.id);
+  d.querySelector(".corpocard").onclick = e => { if(e.target.closest("a.mappa")) return; modale(r.id); };
   return d;
 }
 function elenco(){
@@ -532,6 +534,7 @@ function modale(id){
   $("#fOraIni").value = r ? ora5(r.ora_inizio) : "";
   $("#fOraFin").value = r ? ora5(r.ora_fine) : "";
   $("#fLuogo").value  = r && r.luogo ? r.luogo : "";
+  aggiornaLinkMappa();
   $("#fNote").value   = r && r.note ? r.note : "";
   $("#fPriv").checked = r ? !!r.privata : false;
   $("#fFatto").value  = r && r.fatto ? "si" : "no";
@@ -542,6 +545,10 @@ function modale(id){
   $("#fPriv").disabled = r && !mio;
   apri("mAtt");
   if(!r) setTimeout(() => $("#fDesc").focus(), 80);
+}
+function aggiornaLinkMappa(){
+  const v = $("#fLuogo").value.trim(), a = $("#fMappa");
+  a.hidden = !v; if(v) a.href = linkMappa(v);
 }
 async function salvaDaModale(){
   const desc = $("#fDesc").value.trim();
@@ -646,7 +653,8 @@ function documento(){
               ${o.box?`<td class="bx"><span class="${r.fatto?"f":""}"></span></td>`:""}
               ${o.prio?`<td class="pr">${pesoPrio(r.priorita)===0?"!":pesoPrio(r.priorita)===1?"·":""}</td>`:""}
               <td>${esc(r.descrizione)}${o.gruppo!=="tag"&&r.tag?` <span class="rg">[${esc(r.tag)}]</span>`:""}${r.privata?` <span class="rg">(privata)</span>`:""}${
-                o.ora && (orario(r) || r.luogo) ? `<div class="sub">${[orario(r), r.luogo].filter(Boolean).map(esc).join(" · ")}</div>` : ""}${
+                o.ora && (orario(r) || r.luogo) ? `<div class="sub">${[orario(r) ? esc(orario(r)) : "",
+                  r.luogo ? `<a href="${linkMappa(r.luogo)}">${esc(r.luogo)}</a>` : ""].filter(Boolean).join(" · ")}</div>` : ""}${
                 o.note && r.note ? `<div class="sub nt">${esc(r.note)}</div>` : ""}</td>
               ${o.chi?`<td class="rg">${esc(nomeDi(r.autore))}</td>`:""}
               ${o.ric?`<td class="rg">${passoRic(r.ricorrenza)&&(passoRic(r.ricorrenza).giorni||passoRic(r.ricorrenza).mesi)?"↻ "+esc(r.ricorrenza):""}</td>`:""}
@@ -1233,6 +1241,7 @@ function collegaEventi(){
   $("#btnNuova").onclick    = () => modale(null);
   $("#btnSalvaAtt").onclick = salvaDaModale;
   $("#fTag").onchange = e => e.target.classList.remove("errore");
+  $("#fLuogo").oninput = aggiornaLinkMappa;
   $("#btnElimina").onclick  = () => {
     const r = S.righe.find(x => x.id === S.modifica); if(!r) return;
     conferma("Eliminare l'attività?", `«${r.descrizione}» verrà rimossa per tutti.`, async () => {

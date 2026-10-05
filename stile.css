@@ -144,6 +144,10 @@ h1,h2,h3,h4{letter-spacing:-.015em;margin:0}
 .spunta svg{width:15px;height:15px}
 .corpocard{flex:1;min-width:0}
 .desc{font-weight:570;word-break:break-word;letter-spacing:-.005em}
+a.pill.mappa{color:var(--accent);text-decoration:none;border-color:var(--accent-soft);background:var(--accent-soft);font-weight:600}
+a.pill.mappa:active{opacity:.7}
+#fMappa{flex:none;text-decoration:none;color:var(--accent);font-weight:620;display:inline-flex;align-items:center;white-space:nowrap}
+#doc .sub a{color:inherit;text-decoration:none}
 .notaCard{font-size:12.5px;color:var(--ink-soft);margin-top:2px;white-space:pre-line;word-break:break-word;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .meta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:7px;font-size:12px}

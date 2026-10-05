@@ -329,7 +329,9 @@
         <label class="campo"><span>Ora inizio</span><input type="time" id="fOraIni"></label>
         <label class="campo"><span>Ora fine</span><input type="time" id="fOraFin"></label>
       </div>
-      <label class="campo"><span>Luogo</span><input type="text" id="fLuogo" maxlength="120" placeholder="Dove (facoltativo)" autocomplete="off"></label>
+      <div class="campo"><span>Luogo</span>
+        <div class="inline"><input type="text" id="fLuogo" maxlength="120" placeholder="Indirizzo o nome del posto (facoltativo)" autocomplete="off">
+          <a class="btn" id="fMappa" target="_blank" rel="noopener" title="Apri in Google Maps" hidden>📍 Mappa</a></div></div>
       <label class="campo"><span>Ricorrenza</span><select id="fRic"></select></label>
       <label class="campo"><span>Note</span><textarea id="fNote" rows="3" placeholder="Dettagli, numeri utili, cosa portare…"></textarea></label>
       <label class="switch"><input type="checkbox" id="fPriv"><span class="slider"></span>
