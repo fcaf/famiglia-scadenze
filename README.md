@@ -1,4 +1,6 @@
-# Attività e Scadenze di famiglia
+# FARO · Attività e scadenze di famiglia
+
+*FARO = Famiglia: Attività, Ricorrenze, Organizzazione.*
 
 App web installabile sul telefono per gestire le attività e le scadenze di casa, lavoro e
 famiglia: elenco condiviso, attività private, calendario, report stampabili in PDF e
@@ -119,8 +121,10 @@ VAPID_PUBLIC:  "la-chiave-pubblica-generata"     // punto 4 (lascia "" se niente
 4. Nell'app, su ogni telefono: tocca l'iniziale in alto a destra → attiva
    **Promemoria sul telefono** e concedi il permesso.
 
-L'orario si cambia in `.github/workflows/promemoria.yml`: `cron: "0 6 * * *"` significa le
-06:00 UTC, cioè le 8 del mattino con l'ora legale e le 7 con l'ora solare.
+L'orario si cambia in `.github/workflows/promemoria.yml`: `cron: "23 5 * * *"` significa le
+05:23 UTC, cioè le 7:23 con l'ora legale e le 6:23 con l'ora solare. GitHub avvia i lavori
+programmati con un ritardo variabile (spesso 10-60 minuti, a volte ore, soprattutto allo
+scoccare dell'ora): per questo il minuto è «strano» e l'orario è anticipato.
 
 ## 8. Installa l'app sul telefono
 

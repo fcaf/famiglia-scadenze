@@ -1,10 +1,11 @@
 /* =====================================================================
-   Attività e Scadenze di famiglia
+   FARO — Famiglia: Attività, Ricorrenze, Organizzazione
    App statica che parla con Supabase. Nessun server da gestire.
    ===================================================================== */
 "use strict";
 
-const VERSIONE = "4 ottobre 2026";
+const APP = "FARO";
+const VERSIONE = "5 ottobre 2026";
 const MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio",
               "agosto","settembre","ottobre","novembre","dicembre"];
 const GG = ["lun","mar","mer","gio","ven","sab","dom"];
@@ -47,6 +48,19 @@ function piuMesi(iso,n){
   d.setDate(1); d.setMonth(d.getMonth()+n);
   d.setDate(Math.min(g, new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()));
   return dISO(d);
+}
+const ora5 = t => t ? String(t).slice(0,5) : "";               // "09:30:00" -> "09:30"
+function orario(r){
+  const a = ora5(r.ora_inizio), b = ora5(r.ora_fine);
+  return a && b ? a + "–" + b : a ? "dalle " + a : b ? "entro le " + b : "";
+}
+/* Messaggio chiaro se lo script SQL dei nuovi campi non è ancora stato eseguito. */
+function spiegaErrore(err){
+  const m = (err && err.message) || String(err || "");
+  if(/note|luogo|ora_inizio|ora_fine/.test(m) && /column|schema cache/i.test(m))
+    return "Il database non ha ancora i campi note, luogo e orario: esegui su Supabase lo script "
+      + "aggiornamento-3.sql (SQL Editor → New query → incolla → Run).";
+  return m;
 }
 const eur = v => (v==null||v==="") ? "" :
   new Intl.NumberFormat("it-IT",{ style:"currency", currency:"EUR" }).format(v);
@@ -92,14 +106,14 @@ const nomeDi = id => (S.membri[id] && S.membri[id].nome) || "—";
 const iniziali = n => (n||"?").trim().slice(0,2).toUpperCase();
 
 /* ------------------------------- avvisi ------------------------------ */
-function avviso(testo, etichetta, azione){
+function avviso(testo, etichetta, azione, durata){
   const d = document.createElement("div");
   d.className = "avviso"; d.textContent = testo;
   if(etichetta){ const b = document.createElement("button"); b.textContent = etichetta;
     b.onclick = () => { azione(); d.remove(); }; d.appendChild(b); }
   $("#avvisi").appendChild(d);
   setTimeout(() => { d.style.opacity = "0"; d.style.transition = "opacity .3s";
-    setTimeout(() => d.remove(), 300); }, etichetta ? 6000 : 2800);
+    setTimeout(() => d.remove(), 300); }, durata || (etichetta ? 6000 : 2800));
 }
 const apri   = id => { $("#"+id).hidden = false; };
 const chiudi = id => { $("#"+id).hidden = true; };
@@ -256,7 +270,7 @@ async function salvaAttivita(dati, id){
   const q = id ? sb.from("attivita").update(dati).eq("id", id)
                : sb.from("attivita").insert({ ...dati, autore:S.utente.id });
   const { error } = await q;
-  if(error){ avviso("Non salvata: " + error.message); return false; }
+  if(error){ avviso("Non salvata: " + spiegaErrore(error), null, null, 9000); return false; }
   await carica(); return true;
 }
 async function eliminaAttivita(id){
@@ -273,11 +287,14 @@ async function spunta(id){
   if(fatto){
     const nuova = prossima(r.scadenza, r.ricorrenza);
     if(nuova){
-      await sb.from("attivita").insert({
+      const copia = {
         tag:r.tag, descrizione:r.descrizione, scadenza:nuova, fatto:false, in_data:null,
         priorita:r.priorita, ricorrenza:r.ricorrenza, importo:r.importo,
         privata:r.privata, autore:S.utente.id
-      });
+      };
+      ["note","luogo","ora_inizio","ora_fine"].forEach(k => { if(r[k] != null) copia[k] = r[k]; });
+      const { error:e2 } = await sb.from("attivita").insert(copia);
+      if(e2){ avviso("Prossima occorrenza non creata: " + spiegaErrore(e2), null, null, 9000); return carica(); }
       avviso("Fatta ✓ — prossima il " + fmt(nuova));
     }
   }
@@ -300,10 +317,13 @@ function ordina(arr, chiave){
   return [...arr].sort((x,y) => {
     let v = 0;
     if(chiave === "scadenza"){ const a = x.scadenza||"9999-12-31", b = y.scadenza||"9999-12-31"; v = a<b?-1:a>b?1:0; }
+    else if(chiave === "ora"){ const a = ora5(x.ora_inizio)||"99", b = ora5(y.ora_inizio)||"99"; v = a<b?-1:a>b?1:0;
+      if(v === 0) v = pesoPrio(x.priorita) - pesoPrio(y.priorita); }
     else if(chiave === "priorita") v = pesoPrio(x.priorita) - pesoPrio(y.priorita);
     else if(chiave === "importo")  v = (+y.importo||0) - (+x.importo||0);
     else v = String(x[chiave]||"").localeCompare(String(y[chiave]||""), "it", { sensitivity:"base" });
     if(v === 0){ const a = x.scadenza||"9999-12-31", b = y.scadenza||"9999-12-31"; v = a<b?-1:a>b?1:0; }
+    if(v === 0){ const a = ora5(x.ora_inizio)||"99", b = ora5(y.ora_inizio)||"99"; v = a<b?-1:a>b?1:0; }
     if(v === 0) v = String(x.descrizione||"").localeCompare(String(y.descrizione||""), "it");
     return v;
   });
@@ -322,7 +342,7 @@ function filtrate(){
     if(f.quando === "w" && !(r.scadenza && giorni(oggi(), r.scadenza) >= 0
         && giorni(oggi(), r.scadenza) <= PREF.giorni)) return false;
     if(f.quando === "pay" && r.importo == null) return false;
-    if(q && !((r.descrizione||"").toLowerCase().includes(q) || (r.tag||"").toLowerCase().includes(q))) return false;
+    if(q && ![r.descrizione, r.tag, r.note, r.luogo].some(x => (x||"").toLowerCase().includes(q))) return false;
     return true;
   });
   return ordina(out, f.ord);
@@ -408,9 +428,12 @@ function schedaAttivita(r){
     </button>
     <div class="corpocard">
       <div class="desc">${esc(r.descrizione)}</div>
+      ${r.note?`<div class="notaCard">${esc(r.note)}</div>`:""}
       <div class="meta">
         ${r.tag?`<span class="tagb" style="background:${c.tenue};color:${c.forte}">${esc(r.tag)}</span>`:""}
         ${rigaScadenza(r)}
+        ${orario(r)?`<span class="pill">🕘 ${esc(orario(r))}</span>`:""}
+        ${r.luogo?`<span class="pill">📍 ${esc(r.luogo)}</span>`:""}
         <span class="prio" style="color:${colPrio(r.priorita)}"><i></i>${esc(r.priorita||"")}</span>
         ${r.importo!=null?`<span class="soldi">${eur(r.importo)}</span>`:""}
         ${r.ricorrenza&&passoRic(r.ricorrenza)&&(passoRic(r.ricorrenza).giorni||passoRic(r.ricorrenza).mesi)
@@ -481,30 +504,35 @@ function pannelloGiorno(perGiorno){
     <button class="btn wide" id="aggiungiQui" style="margin-top:12px">+ Attività il ${fmt(S.calSel)}</button>`;
   const box = $("#listaGiorno");
   if(!ev.length) box.innerHTML = `<p class="note">Nessuna scadenza in questa data.</p>`;
-  else ordina(ev, "priorita").forEach(r => box.appendChild(schedaAttivita(r)));
+  else ordina(ev, "ora").forEach(r => box.appendChild(schedaAttivita(r)));
   $("#aggiungiQui").onclick = () => { modale(null); $("#fScad").value = S.calSel; };
 }
 
 /* =====================================================================
    MODALE ATTIVITÀ
    ===================================================================== */
-function riempiSelect(sel, valori, scelto){
-  sel.innerHTML = valori.map(v => `<option value="${esc(v)}"${v===scelto?" selected":""}>${esc(v)}</option>`).join("");
+function riempiSelect(sel, valori, scelto, vuota){
+  sel.innerHTML = (vuota ? `<option value="">${esc(vuota)}</option>` : "") + valori.map(v => `<option value="${esc(v)}"${v===scelto?" selected":""}>${esc(v)}</option>`).join("");
   if(scelto && !valori.includes(scelto))                       // valore non più in elenco: lo conserva
     sel.insertAdjacentHTML("afterbegin", `<option value="${esc(scelto)}" selected>${esc(scelto)} (non in elenco)</option>`);
 }
 function modale(id){
   S.modifica = id || null;
   const r = id ? S.righe.find(x => x.id === id) : null;
-  const tagIniziale = r ? r.tag
-    : (S.filtri.tag.size === 1 ? [...S.filtri.tag][0] : (PREF.tag || nomiTag()[0] || ""));
+  // Nuova attività: tag vuoto, da scegliere (salvo un tag predefinito scelto in Impostazioni).
+  const tagIniziale = r ? r.tag : (PREF.tag && trovaTag(PREF.tag) ? PREF.tag : "");
   $("#mTitolo").textContent = r ? "Modifica attività" : "Nuova attività";
   $("#fDesc").value   = r ? r.descrizione : "";
-  riempiSelect($("#fTag"),  nomiTag(), tagIniziale);
+  riempiSelect($("#fTag"),  nomiTag(), tagIniziale, "— scegli un tag —");
+  $("#fTag").classList.remove("errore");
   riempiSelect($("#fPrio"), S.priorita.map(p => p.nome), r ? r.priorita : (PREF.prio || S.priorita[0].nome));
   riempiSelect($("#fRic"),  S.ricorrenze.map(x => x.nome), r ? r.ricorrenza : (PREF.ric || S.ricorrenze[0].nome));
   $("#fScad").value   = r && r.scadenza ? r.scadenza : "";
   $("#fImp").value    = r && r.importo != null ? r.importo : "";
+  $("#fOraIni").value = r ? ora5(r.ora_inizio) : "";
+  $("#fOraFin").value = r ? ora5(r.ora_fine) : "";
+  $("#fLuogo").value  = r && r.luogo ? r.luogo : "";
+  $("#fNote").value   = r && r.note ? r.note : "";
   $("#fPriv").checked = r ? !!r.privata : false;
   $("#fFatto").value  = r && r.fatto ? "si" : "no";
   $("#fInData").value = r && r.in_data ? r.in_data : "";
@@ -518,6 +546,9 @@ function modale(id){
 async function salvaDaModale(){
   const desc = $("#fDesc").value.trim();
   if(!desc){ $("#fDesc").focus(); avviso("La descrizione è obbligatoria"); return; }
+  if(!$("#fTag").value){ $("#fTag").classList.add("errore"); $("#fTag").focus(); avviso("Scegli un tag"); return; }
+  const oi = $("#fOraIni").value, of = $("#fOraFin").value;
+  if(oi && of && of < oi){ $("#fOraFin").focus(); avviso("L'ora di fine è prima di quella di inizio"); return; }
   const fatto = $("#fFatto").value === "si";
   const dati = {
     tag: $("#fTag").value,
@@ -526,10 +557,20 @@ async function salvaDaModale(){
     priorita: $("#fPrio").value,
     ricorrenza: $("#fRic").value,
     importo: $("#fImp").value === "" ? null : parseFloat($("#fImp").value),
+    ora_inizio: oi || null,
+    ora_fine: of || null,
+    luogo: $("#fLuogo").value.trim() || null,
+    note: $("#fNote").value.trim() || null,
     privata: $("#fPriv").checked,
     fatto,
     in_data: fatto ? ($("#fInData").value || oggi()) : null
   };
+  // I campi nuovi si inviano solo se servono: così l'app continua a funzionare anche
+  // prima che su Supabase sia stato eseguito aggiornamento-3.sql.
+  const prima = S.modifica ? S.righe.find(x => x.id === S.modifica) : null;
+  ["note","luogo","ora_inizio","ora_fine"].forEach(k => {
+    if(dati[k] == null && !(prima && prima[k] != null)) delete dati[k];
+  });
   const b = $("#btnSalvaAtt"); b.disabled = true;
   const ok = await salvaAttivita(dati, S.modifica);
   b.disabled = false;
@@ -575,7 +616,8 @@ function righeReport(){
 function documento(){
   const righe = righeReport();
   const o = { box:$("#rBox").checked, data:$("#rData").checked, prio:$("#rPrio").checked,
-              imp:$("#rImp").checked, ric:$("#rRic").checked, chi:$("#rChi").checked, gruppo:$("#rGruppo").value };
+              imp:$("#rImp").checked, ric:$("#rRic").checked, chi:$("#rChi").checked, gruppo:$("#rGruppo").value,
+              ora:$("#rOra").checked, note:$("#rNote").checked };
   const ora = new Date();
   const stampa = pad(ora.getDate())+"/"+pad(ora.getMonth()+1)+"/"+ora.getFullYear();
   const usati = [...new Set(S.righe.map(r => r.tag || "").filter(Boolean))];
@@ -603,7 +645,9 @@ function documento(){
             return `<tr class="${r.fatto?"done":""}">
               ${o.box?`<td class="bx"><span class="${r.fatto?"f":""}"></span></td>`:""}
               ${o.prio?`<td class="pr">${pesoPrio(r.priorita)===0?"!":pesoPrio(r.priorita)===1?"·":""}</td>`:""}
-              <td>${esc(r.descrizione)}${o.gruppo!=="tag"&&r.tag?` <span class="rg">[${esc(r.tag)}]</span>`:""}${r.privata?` <span class="rg">(privata)</span>`:""}</td>
+              <td>${esc(r.descrizione)}${o.gruppo!=="tag"&&r.tag?` <span class="rg">[${esc(r.tag)}]</span>`:""}${r.privata?` <span class="rg">(privata)</span>`:""}${
+                o.ora && (orario(r) || r.luogo) ? `<div class="sub">${[orario(r), r.luogo].filter(Boolean).map(esc).join(" · ")}</div>` : ""}${
+                o.note && r.note ? `<div class="sub nt">${esc(r.note)}</div>` : ""}</td>
               ${o.chi?`<td class="rg">${esc(nomeDi(r.autore))}</td>`:""}
               ${o.ric?`<td class="rg">${passoRic(r.ricorrenza)&&(passoRic(r.ricorrenza).giorni||passoRic(r.ricorrenza).mesi)?"↻ "+esc(r.ricorrenza):""}</td>`:""}
               ${o.data?`<td class="dt ${tardi?"late":""}">${r.scadenza?fmt(r.scadenza):"—"}</td>`:""}
@@ -618,7 +662,7 @@ function documento(){
         <div style="font-size:9pt;color:#555;margin-top:3px">${esc(etTag)} — ${etStato}</div></div>
       <div class="testata"><div>Stampato il ${stampa}</div><div>${righe.length} attività</div>${o.imp && tot ? `<div>Totale da pagare: <b>${eur(tot)}</b></div>` : ""}</div>
     </div>${corpo}
-    <div class="foot"><span>Attività e Scadenze di famiglia</span><span>${esc(nomeDi(S.utente && S.utente.id))}</span></div></div>`;
+    <div class="foot"><span>${APP} · Attività e scadenze di famiglia</span><span>${esc(nomeDi(S.utente && S.utente.id))}</span></div></div>`;
 }
 /* L'anteprima e il documento da stampare vengono tenuti sempre allineati:
    così anche la stampa avviata dal menù del browser produce il report. */
@@ -631,13 +675,26 @@ function anteprima(){
   $("#rConteggio").textContent = n ? (n === 1 ? "1 attività nel report" : n + " attività nel report")
                                    : "Nessuna attività con questi criteri";
 }
+/* Stampa: invece di affidarsi solo alle regole @media print (che alcuni browser, soprattutto
+   sui telefoni e nelle app installate, applicano male producendo pagine bianche), l'app passa
+   in «modalità documento»: a schermo resta SOLO il report. Qualunque strada si usi per
+   stampare — il pulsante, il menù del browser, Condividi → Stampa — esce il report. */
+const TITOLO_APP = document.title;
 function stampaReport(){
   $("#stampa").innerHTML = documento();
-  const titolo = document.title;
   document.title = ($("#rTitolo").value || "Elenco attività");
-  const ripristina = () => { document.title = titolo; window.removeEventListener("afterprint", ripristina); };
-  window.addEventListener("afterprint", ripristina);
-  setTimeout(() => window.print(), 60);          // lascia al browser il tempo di comporre la pagina
+  document.body.classList.add("modoStampa");
+  window.scrollTo(0, 0);
+  // sui computer, chiusa la finestra di stampa si torna da soli all'app
+  if(matchMedia("(pointer: fine)").matches){
+    const fine = () => { window.removeEventListener("afterprint", fine); setTimeout(esciStampa, 300); };
+    window.addEventListener("afterprint", fine);
+  }
+  setTimeout(() => { try{ window.print(); }catch(e){} }, 350);   // tempo per comporre la pagina
+}
+function esciStampa(){
+  document.body.classList.remove("modoStampa");
+  document.title = TITOLO_APP;
 }
 
 /* =====================================================================
@@ -1010,7 +1067,20 @@ const norm = s => String(s==null?"":s).trim().toLowerCase()
 const MAPPA = { "tag":"tag","area":"tag","categoria":"tag","descrizione":"descrizione","attivita":"descrizione",
   "scadenza":"scadenza","data scadenza":"scadenza","fatto":"fatto","fatta":"fatto","svolto":"fatto",
   "in data":"in_data","fatto in data":"in_data","data":"in_data","priorita":"priorita",
-  "ricorrenza":"ricorrenza","frequenza":"ricorrenza","importo":"importo","costo":"importo","privata":"privata" };
+  "ricorrenza":"ricorrenza","frequenza":"ricorrenza","importo":"importo","costo":"importo","privata":"privata",
+  "note":"note","nota":"note","luogo":"luogo","dove":"luogo","indirizzo":"luogo",
+  "ora inizio":"ora_inizio","inizio":"ora_inizio","dalle":"ora_inizio","ora":"ora_inizio",
+  "ora fine":"ora_fine","fine":"ora_fine","alle":"ora_fine" };
+/* Ora da Excel: frazione di giorno (0,5 = 12:00), data+ora, oppure testo «9:30», «9.30», «930». */
+function leggiOra(v){
+  if(v == null || v === "") return null;
+  if(typeof v === "number"){ const min = Math.round((v - Math.floor(v)) * 1440) % 1440;
+    return pad(Math.floor(min/60)) + ":" + pad(min%60); }
+  const m = String(v).trim().match(/^(\d{1,2})(?:[:.,h](\d{2}))?$/) || String(v).trim().match(/^(\d{1,2})(\d{2})$/);
+  if(!m) return null;
+  const h = +m[1], mi = +(m[2] || 0);
+  return h < 24 && mi < 60 ? pad(h) + ":" + pad(mi) : null;
+}
 const vero = v => ["si","sì","s","x","true","vero","1","yes","ok","fatto","fatta"]
   .includes(String(v==null?"":v).trim().toLowerCase());
 
@@ -1034,6 +1104,8 @@ async function importaExcel(file){
       l.forEach((cella,j) => {
         const k = testa[j]; if(!k) return;
         if(k === "scadenza" || k === "in_data") o[k] = leggiData(cella);
+        else if(k === "ora_inizio" || k === "ora_fine") o[k] = leggiOra(cella);
+        else if(k === "note" || k === "luogo"){ const t = String(cella==null?"":cella).trim(); o[k] = t || null; }
         else if(k === "fatto" || k === "privata") o[k] = vero(cella);
         else if(k === "importo"){ const n = parseFloat(String(cella).replace(",", ".")); o.importo = isNaN(n) ? null : n; }
         else if(k === "priorita"){ const s = norm(cella);
@@ -1068,18 +1140,20 @@ async function importaExcel(file){
     await carica(); disegnaImpostazioni();
     avviso("Importate " + nuove.length + " attività"
       + (tagNuovi.size ? " e " + tagNuovi.size + " nuovi tag" : ""));
-  }catch(e){ avviso("Importazione non riuscita: " + e.message); }
+  }catch(e){ avviso("Importazione non riuscita: " + spiegaErrore(e), null, null, 9000); }
 }
 async function esportaExcel(){
   try{
     await caricaSheetJS();
-    const intest = ["tag","descrizione","scadenza","fatto","in data","priorita","ricorrenza","importo","privata","inserita da"];
+    const intest = ["tag","descrizione","scadenza","fatto","in data","priorita","ricorrenza","importo","privata","inserita da",
+                    "ora inizio","ora fine","luogo","note"];
     const aoa = [intest];
     ordina(S.righe, "tag").forEach(r => aoa.push([
       r.tag, r.descrizione, r.scadenza ? isoDaSeriale(r.scadenza) : null,
       r.fatto ? "SI" : "NO", r.in_data ? isoDaSeriale(r.in_data) : null,
       r.priorita, r.ricorrenza, r.importo == null ? null : +r.importo,
-      r.privata ? "SI" : "NO", nomeDi(r.autore)
+      r.privata ? "SI" : "NO", nomeDi(r.autore),
+      ora5(r.ora_inizio), ora5(r.ora_fine), r.luogo || "", r.note || ""
     ]));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const range = XLSX.utils.decode_range(ws["!ref"]);
@@ -1088,7 +1162,8 @@ async function esportaExcel(){
         if(c && c.t === "n"){ c.z = "dd/mm/yyyy"; delete c.w; } }
       const a = ws[XLSX.utils.encode_cell({ r:R, c:7 })]; if(a && a.t === "n") a.z = "#,##0.00";
     }
-    ws["!cols"] = [{wch:15},{wch:48},{wch:12},{wch:8},{wch:12},{wch:11},{wch:14},{wch:12},{wch:9},{wch:16}];
+    ws["!cols"] = [{wch:15},{wch:48},{wch:12},{wch:8},{wch:12},{wch:11},{wch:14},{wch:12},{wch:9},{wch:16},
+                   {wch:10},{wch:10},{wch:24},{wch:40}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Attivita");
     XLSX.writeFile(wb, "attivita-" + oggi() + ".xlsx");
@@ -1157,6 +1232,7 @@ function collegaEventi(){
 
   $("#btnNuova").onclick    = () => modale(null);
   $("#btnSalvaAtt").onclick = salvaDaModale;
+  $("#fTag").onchange = e => e.target.classList.remove("errore");
   $("#btnElimina").onclick  = () => {
     const r = S.righe.find(x => x.id === S.modifica); if(!r) return;
     conferma("Eliminare l'attività?", `«${r.descrizione}» verrà rimossa per tutti.`, async () => {
@@ -1168,11 +1244,13 @@ function collegaEventi(){
   $("#calNext").onclick = () => { S.cal.setMonth(S.cal.getMonth()+1); calendario(); };
   $("#calOggi").onclick = () => { S.cal = new Date(); S.calSel = oggi(); calendario(); };
 
-  ["rTitolo","rStato","rQuando","rOrd","rGruppo","rBox","rData","rPrio","rImp","rRic","rChi","rPriv"]
+  ["rTitolo","rStato","rQuando","rOrd","rGruppo","rBox","rData","rPrio","rImp","rRic","rChi","rPriv","rOra","rNote"]
     .forEach(id => { const e = $("#"+id); if(e) e.oninput = e.onchange = anteprima; });
   $("#rTutti").onclick   = () => { S.reportEsclusi.clear(); tagReport(); anteprima(); };
   $("#rNessuno").onclick = () => { S.reportEsclusi = new Set(nomiTag()); tagReport(); anteprima(); };
   $("#btnStampa").onclick = stampaReport;
+  $("#psStampa").onclick  = () => { try{ window.print(); }catch(e){} };
+  $("#psTorna").onclick   = esciStampa;
   window.addEventListener("beforeprint", () => {
     if(!$("#stampa").innerHTML.trim()) $("#stampa").innerHTML = documento();
   });
@@ -1205,7 +1283,7 @@ function collegaEventi(){
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
     if(PREF.tema === "auto"){ applicaTema(); disegna(); } });
   document.addEventListener("keydown", e => {
-    if(e.key === "Escape") $$(".velo").forEach(v => v.hidden = true);
+    if(e.key === "Escape"){ $$(".velo").forEach(v => v.hidden = true); esciStampa(); }
   });
   window.addEventListener("online",  () => { stato(""); carica(); });
   window.addEventListener("offline", () => stato("non connesso", true));

@@ -1,7 +1,7 @@
 {
-  "name": "Attività e Scadenze di famiglia",
-  "short_name": "Scadenze",
-  "description": "Elenco condiviso di attività e scadenze familiari, con report stampabili e promemoria.",
+  "name": "FARO · Attività e scadenze di famiglia",
+  "short_name": "FARO",
+  "description": "FARO — Famiglia: Attività, Ricorrenze, Organizzazione. Elenco condiviso di attività e scadenze familiari, con report stampabili e promemoria.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
@@ -10,8 +10,21 @@
   "theme_color": "#1f4f8f",
   "lang": "it",
   "icons": [
-    { "src": "icona-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icona-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icona-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icona-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icona-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icona-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Promemoria giornalieri via notifica push.
+   FARO · promemoria giornalieri via notifica push.
    Eseguito da GitHub Actions una volta al giorno (gratis).
 
    Parla con Supabase via chiamate HTTP diritte, senza la libreria
@@ -44,11 +44,25 @@ const fmt = s => s ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) 
 
 const oggi = romaOggi();
 
+/* Quando è partito davvero: GitHub può avviare i lavori programmati con ritardo.
+   Questa riga nel registro dell'esecuzione permette di vederlo a colpo d'occhio. */
+const oraRoma = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" })
+  .format(new Date());
+const avvio = { schedule: "programmata", workflow_dispatch: "lanciata a mano" }[process.env.GITHUB_EVENT_NAME]
+  || process.env.GITHUB_EVENT_NAME || "locale";
+console.log(`Esecuzione ${avvio}, partita alle ${oraRoma} ora italiana.`);
+
 /* --- attività da fare con scadenza entro oggi ------------------------ */
 let attivita, iscrizioni;
 try {
-  attivita = await api("attivita?select=id,descrizione,tag,scadenza,importo,privata,autore,priorita"
-    + "&fatto=eq.false&scadenza=not.is.null&scadenza=lte." + oggi + "&order=scadenza.asc");
+  const filtro = "&fatto=eq.false&scadenza=not.is.null&scadenza=lte." + oggi + "&order=scadenza.asc";
+  const campi = "id,descrizione,tag,scadenza,importo,privata,autore,priorita";
+  try {
+    attivita = await api("attivita?select=" + campi + ",ora_inizio,luogo" + filtro);
+  } catch (e) {                         // database senza i campi nuovi (aggiornamento-3.sql non eseguito)
+    if (!/ora_inizio|luogo/.test(e.message)) throw e;
+    attivita = await api("attivita?select=" + campi + filtro);
+  }
 } catch (e) {
   console.error("Lettura attività non riuscita:", e.message);
   console.error("Controlla i segreti SUPABASE_URL e SUPABASE_SERVICE_KEY (serve la chiave service_role).");
@@ -81,13 +95,15 @@ function messaggio(perUtente) {
   if (tardi.length) parti.push(`${tardi.length} in ritardo`);
   if (diOggi.length) parti.push(`${diOggi.length} in scadenza oggi`);
   const elenco = visibili.slice(0, 3)
-    .map(a => `• ${a.descrizione}${a.scadenza < oggi ? " (dal " + fmt(a.scadenza) + ")" : ""}`).join("\n");
+    .map(a => `• ${a.descrizione}`
+      + (a.scadenza < oggi ? " (dal " + fmt(a.scadenza) + ")" : a.ora_inizio ? " alle " + String(a.ora_inizio).slice(0, 5) : "")
+      + (a.luogo ? " · " + a.luogo : "")).join("\n");
   const extra = visibili.length > 3 ? `\n…e altre ${visibili.length - 3}` : "";
   const daPagare = visibili.reduce((s, a) => s + (+a.importo || 0), 0);
   const soldi = daPagare
     ? `\nDa pagare: ${new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(daPagare)}`
     : "";
-  return { titolo: `Scadenze: ${parti.join(", ")}`, corpo: elenco + extra + soldi, url: "./" };
+  return { titolo: `FARO · ${parti.join(", ")}`, corpo: elenco + extra + soldi, url: "./" };
 }
 
 /* --- invio ----------------------------------------------------------- */
@@ -104,7 +120,7 @@ for (const i of iscrizioni) {
     await webpush.sendNotification(
       { endpoint: i.endpoint, keys: { p256dh: i.p256dh, auth: i.auth } },
       JSON.stringify(msg),
-      { TTL: 12 * 3600, urgency: "normal" }
+      { TTL: 12 * 3600, urgency: "high" }     // "high": il telefono la consegna subito anche a riposo
     );
     inviate++;
   } catch (err) {

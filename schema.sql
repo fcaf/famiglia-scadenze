@@ -34,6 +34,10 @@ create table if not exists public.attivita (
                                       'Mensile','Bimestrale','Trimestrale','Semestrale','Annuale')),
   importo       numeric(12,2),
   privata       boolean not null default false,
+  note          text,
+  luogo         text,
+  ora_inizio    time,
+  ora_fine      time,
   autore        uuid not null default auth.uid() references auth.users on delete cascade,
   creata_il     timestamptz not null default now(),
   aggiornata_il timestamptz not null default now()

@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f4f8f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Scadenze">
-<title>Attività e Scadenze</title>
+<meta name="apple-mobile-web-app-title" content="FARO">
+<title>FARO · Attività e scadenze di famiglia</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icona-192.png">
-<link rel="apple-touch-icon" href="icona-192.png">
+<link rel="apple-touch-icon" href="icona-180.png">
 <link rel="stylesheet" href="stile.css">
 <script>
 /* Rete di sicurezza: se qualcosa non si carica o va in errore, invece di una pagina
@@ -25,7 +25,7 @@
       (document.body || document.documentElement).appendChild(d);
     }
     d.innerHTML = '<div style="max-width:620px;margin:0 auto">'
-      + '<h1 style="font-size:19px;margin:0 0 10px">Attività e Scadenze non è riuscita a partire</h1>'
+      + '<h1 style="font-size:19px;margin:0 0 10px">FARO non è riuscita a partire</h1>'
       + '<p style="margin:0 0 14px;color:#5b6472">' + titolo + '</p>'
       + '<pre style="background:#fbe9e9;color:#a62c2c;padding:11px 13px;border-radius:10px;'
       + 'white-space:pre-wrap;word-break:break-word;font-size:13px;margin:0 0 14px">' + dettaglio + '</pre>'
@@ -56,8 +56,9 @@
 <!-- ============================ ACCESSO ============================ -->
 <section id="login" class="login" hidden>
   <div class="loginbox">
-    <div class="logo">✓</div>
-    <h1>Attività e Scadenze</h1>
+    <img class="logo" src="icona-192.png" alt="" width="64" height="64">
+    <h1>FARO</h1>
+    <p class="sigla">Famiglia · Attività · Ricorrenze · Organizzazione</p>
     <p class="sub">Accedi con le credenziali di famiglia</p>
     <form id="formLogin" autocomplete="on">
       <label>Email
@@ -79,6 +80,7 @@
   <header class="hero">
     <div class="heroInner">
       <div class="saluto">
+        <div class="marchio"><img src="icona-192.png" alt="" width="18" height="18">FARO</div>
         <h1 id="saluto">Ciao</h1>
         <p id="sottotitolo">—</p>
       </div>
@@ -189,13 +191,15 @@
           <label class="chk"><input type="checkbox" id="rPrio" checked> Priorità</label>
           <label class="chk"><input type="checkbox" id="rImp" checked> Importi e totali</label>
           <label class="chk"><input type="checkbox" id="rRic"> Ricorrenza</label>
+          <label class="chk"><input type="checkbox" id="rOra" checked> Orario e luogo</label>
+          <label class="chk"><input type="checkbox" id="rNote"> Note</label>
           <label class="chk"><input type="checkbox" id="rChi"> Chi l'ha inserita</label>
           <label class="chk"><input type="checkbox" id="rPriv"> Anche le mie private</label>
         </div>
       </div>
       <p class="conteggio" id="rConteggio"></p>
       <button class="btn primary wide" id="btnStampa">🖨️ Stampa / Salva come PDF</button>
-      <p class="note">Sul telefono: menù del browser → Condividi → Stampa → Salva come PDF.</p>
+      <p class="note">Si apre il documento a tutto schermo: scegli «Salva come PDF» come stampante. Sul telefono, se la stampa non parte da sola: Condividi → Stampa.</p>
     </div>
     <div class="anteprima" id="anteprima"></div>
   </main>
@@ -321,7 +325,13 @@
         <label class="campo"><span>Scadenza</span><input type="date" id="fScad"></label>
         <label class="campo"><span>Importo (€)</span><input type="number" id="fImp" step="0.01" min="0" inputmode="decimal" placeholder="—"></label>
       </div>
+      <div class="due">
+        <label class="campo"><span>Ora inizio</span><input type="time" id="fOraIni"></label>
+        <label class="campo"><span>Ora fine</span><input type="time" id="fOraFin"></label>
+      </div>
+      <label class="campo"><span>Luogo</span><input type="text" id="fLuogo" maxlength="120" placeholder="Dove (facoltativo)" autocomplete="off"></label>
       <label class="campo"><span>Ricorrenza</span><select id="fRic"></select></label>
+      <label class="campo"><span>Note</span><textarea id="fNote" rows="3" placeholder="Dettagli, numeri utili, cosa portare…"></textarea></label>
       <label class="switch"><input type="checkbox" id="fPriv"><span class="slider"></span>
         <span class="txt"><b>Attività privata</b><small>Visibile solo a te: gli altri familiari non la vedono</small></span></label>
       <div class="due">
@@ -348,6 +358,10 @@
 </div>
 
 <div id="avvisi"></div>
+<div id="barraStampa">
+  <button class="btn" id="psTorna">‹ Torna all'app</button>
+  <button class="btn primary" id="psStampa">🖨️ Stampa / PDF</button>
+</div>
 <div id="stampa"></div>
 
 <script src="supabase.min.js"></script>

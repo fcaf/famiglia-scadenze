@@ -77,11 +77,15 @@ Questo è l'unico file che deve stare dentro una cartella precisa.
 
 Nota sull'orario: dentro il file c'è la riga
 
-       - cron: "0 6 * * *"
+       - cron: "23 5 * * *"
 
-che significa le 06:00 UTC, cioè le 8 del mattino con l'ora legale e le
-7 con l'ora solare. Per cambiarlo, modifica le prime due cifre: "0 5"
-= un'ora prima, "30 6" = alle 6:30 UTC. Vanno sempre indicate in UTC.
+che significa le 05:23 UTC, cioè le 7:23 con l'ora legale e le 6:23 con
+l'ora solare. Il primo numero sono i minuti, il secondo le ore, sempre in
+UTC. GitHub avvia i lavori programmati con un ritardo variabile (spesso
+10-60 minuti, a volte ore, soprattutto allo scoccare dell'ora): per questo
+conviene un minuto «strano» e un orario un po' anticipato.
+Nel registro di ogni esecuzione (Actions → un'esecuzione → "Invia i
+promemoria") la prima riga dice a che ora italiana è partita davvero.
 
 
 -----------------------------------------------------------------------

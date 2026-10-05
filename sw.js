@@ -1,8 +1,8 @@
 /* Service worker: funzionamento offline del guscio dell'app e notifiche push. */
-const CACHE = "scadenze-v3";   // cambiando nome si svuota la cache vecchia
+const CACHE = "faro-v4";   // cambiando nome si svuota la cache vecchia
 const GUSCIO = [
   "./", "./index.html", "./stile.css", "./app.js", "./config.js",
-  "./supabase.min.js", "./manifest.webmanifest", "./icona-192.png", "./icona-512.png"
+  "./supabase.min.js", "./manifest.webmanifest", "./icona-192.png", "./icona-512.png", "./icona-180.png"
 ];
 
 self.addEventListener("install", e => {
@@ -41,7 +41,7 @@ self.addEventListener("fetch", e => {
 });
 
 self.addEventListener("push", e => {
-  let d = { titolo:"Attività e Scadenze", corpo:"Hai delle scadenze da controllare." };
+  let d = { titolo:"FARO", corpo:"Hai delle scadenze da controllare." };
   try{ if(e.data) d = Object.assign(d, e.data.json()); }catch(err){ if(e.data) d.corpo = e.data.text(); }
   e.waitUntil(self.registration.showNotification(d.titolo, {
     body: d.corpo,

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Attività e Scadenze di famiglia — foglio di stile
+   FARO · Attività e scadenze di famiglia — foglio di stile
    Pensato prima per il telefono; su schermi larghi il contenuto si centra.
    ===================================================================== */
 :root{
@@ -59,10 +59,10 @@ h1,h2,h3,h4{letter-spacing:-.015em;margin:0}
   background:radial-gradient(1200px 600px at 50% -10%, var(--accent-soft), var(--bg) 60%)}
 .loginbox{background:var(--panel);border:1px solid var(--line);border-radius:22px;box-shadow:var(--ombra-alta);
   padding:30px 24px;width:100%;max-width:400px;text-align:center}
-.loginbox .logo{width:56px;height:56px;border-radius:17px;display:grid;place-items:center;margin:0 auto 14px;
-  background:linear-gradient(145deg,var(--accent-2),var(--accent));color:#fff;font-size:27px;
+.loginbox .logo{width:64px;height:64px;border-radius:18px;display:block;margin:0 auto 14px;
   box-shadow:0 10px 24px -10px var(--accent)}
-.loginbox h1{font-size:21px;margin-bottom:4px}
+.loginbox h1{font-size:24px;margin-bottom:2px;letter-spacing:.06em}
+.loginbox .sigla{margin:0 0 10px;color:var(--ink-soft);font-size:11.5px;letter-spacing:.04em}
 .loginbox .sub{margin:0 0 22px;color:var(--ink-soft);font-size:14px}
 .loginbox label{display:block;text-align:left;font-size:12.5px;font-weight:620;color:var(--ink-soft);margin-bottom:13px}
 .loginbox input{width:100%;margin-top:5px;padding:12px 13px;border:1px solid var(--line-strong);
@@ -80,6 +80,9 @@ h1,h2,h3,h4{letter-spacing:-.015em;margin:0}
 .heroInner{max-width:880px;margin:0 auto;display:flex;align-items:flex-start;gap:12px}
 .saluto{flex:1;min-width:0}
 .saluto h1{font-size:21px;font-weight:650}
+.marchio{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:750;letter-spacing:.16em;
+  opacity:.85;margin-bottom:4px}
+.marchio img{border-radius:5px;display:block}
 .saluto p{margin:2px 0 0;font-size:13.5px;opacity:.88}
 .avatar{width:42px;height:42px;border-radius:50%;flex:none;border:1.5px solid rgba(255,255,255,.45);
   background:rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:14.5px;backdrop-filter:blur(6px)}
@@ -141,6 +144,8 @@ h1,h2,h3,h4{letter-spacing:-.015em;margin:0}
 .spunta svg{width:15px;height:15px}
 .corpocard{flex:1;min-width:0}
 .desc{font-weight:570;word-break:break-word;letter-spacing:-.005em}
+.notaCard{font-size:12.5px;color:var(--ink-soft);margin-top:2px;white-space:pre-line;word-break:break-word;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .meta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:7px;font-size:12px}
 .tagb{padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:680;white-space:nowrap;letter-spacing:.02em}
 .scad{font-weight:620;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
@@ -188,6 +193,7 @@ h1,h2,h3,h4{letter-spacing:-.015em;margin:0}
   border-radius:12px;background:var(--panel-2);font-size:16px}
 .campo input:focus,.campo select:focus,.campo textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
 .campo textarea{resize:vertical}
+.campo select.errore{border-color:var(--bad);outline:2px solid var(--bad-soft)}
 .due{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .tre{display:grid;grid-template-columns:1fr;gap:11px}
 @media (min-width:560px){.tre{grid-template-columns:1fr 1fr 1fr}}
@@ -309,6 +315,8 @@ h1,h2,h3,h4{letter-spacing:-.015em;margin:0}
 #doc .tot{margin-top:4px;text-align:right;font-size:9pt;color:#444;border-top:1px solid #bbb;padding-top:3px}
 #doc .foot{margin-top:16px;border-top:1px solid #ccc;padding-top:6px;font-size:8pt;color:#777;display:flex;justify-content:space-between}
 #doc .none{color:#777;font-style:italic;padding:14px 0}
+#doc .sub{font-size:8.5pt;color:#555;margin-top:1px}
+#doc .sub.nt{font-style:italic;white-space:pre-line}
 
 /* --------------------------- schermi larghi ------------------------- */
 @media (min-width:780px){
@@ -329,9 +337,23 @@ h1,h2,h3,h4{letter-spacing:-.015em;margin:0}
 /* ------------------------------ stampa ------------------------------ */
 @page{size:A4 portrait;margin:0}
 @media print{
-  body{background:#fff}
-  #app,#avvisi,.velo,#login,#errore-fatale{display:none!important}
-  #stampa{display:block!important}
-  #doc{padding:13mm 12mm}
+  body{background:#fff!important}
+  #app,#avvisi,.velo,#login,#errore-fatale,#barraStampa{display:none!important}
+  #stampa{display:block!important;margin:0!important;max-width:none!important;box-shadow:none!important}
+  #doc{padding:13mm 12mm!important}
 }
 #stampa{display:none}
+#barraStampa{display:none}
+
+/* «Modalità documento»: a schermo resta solo il report, così qualunque modo di stampare
+   (pulsante, menù del browser, Condividi → Stampa) produce il documento. */
+body.modoStampa{background:#e7eaef}
+body.modoStampa #app,body.modoStampa #avvisi{display:none!important}
+body.modoStampa #stampa{display:block;max-width:210mm;margin:72px auto 28px;background:#fff;
+  box-shadow:0 10px 30px -12px rgba(16,24,40,.35)}
+body.modoStampa #barraStampa{display:flex;gap:10px;justify-content:space-between;position:fixed;top:0;left:0;right:0;
+  z-index:80;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:rgba(255,255,255,.94);
+  border-bottom:1px solid #dde2ea;backdrop-filter:blur(8px)}
+body.modoStampa #barraStampa .btn{color:#14181d;background:#fff;border-color:#cfd6e0}
+body.modoStampa #barraStampa .btn.primary{background:#1f4f8f;color:#fff;border-color:transparent}
+@media screen and (max-width:600px){ body.modoStampa #doc{padding:18px 14px} body.modoStampa #stampa{margin-top:64px} }
